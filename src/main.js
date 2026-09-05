@@ -15,6 +15,13 @@ let abort = null;
 let dock = null;
 const deep = new Map(); // jobId → cache entry applied to a card this page-life
 
+// LinkedIn's SPA shell ("interop" mode) hosts the classic job pages inside a same-origin
+// `iframe[src*="/preload/"]`, invisible to a content script that only observes the top document.
+// These track the frame observer so we can (re)wire it to whichever contentDocument is current.
+let frameObserver = null;
+let lastFrameDoc = null;
+let lastFrameEl = null;
+
 // Elements/attributes we write ourselves (render.js/dock.js): the observer below must ignore
 // mutations that only touch these, or our own writes would re-trigger schedule() forever.
 const OWN_SELECTOR = `#${DOCK_ID}, .${STRIP_CLASS}, .${STATUS_CLASS}`;
@@ -61,12 +68,36 @@ function runCards() {
 }
 
 export function rerun() {
+  ensureFrameObserver();
   runCards();
   runDetail();
   dock.refreshStatus();
 }
 
+/**
+ * (Re)wire a MutationObserver onto the interop iframe's contentDocument when one is present and
+ * has changed (first sighting, or the frame reloaded/was replaced on navigation). Cheap: a single
+ * querySelector plus an identity check when nothing changed, so it's safe to call from both
+ * schedule() and rerun(). Uses the same onMutations callback as the top-document observer, which
+ * already ignores our own writes via isOwnMutation (closest()/matches() work the same regardless
+ * of which document owns the node).
+ */
+function ensureFrameObserver() {
+  const f = document.querySelector('iframe[src*="/preload/"]');
+  if (f && f !== lastFrameEl) {
+    lastFrameEl = f;
+    f.addEventListener('load', () => { ensureFrameObserver(); schedule(); });
+  }
+  const d = f?.contentDocument;
+  if (!d || d === lastFrameDoc) return;
+  frameObserver?.disconnect();
+  lastFrameDoc = d;
+  frameObserver = new MutationObserver(onMutations);
+  frameObserver.observe(d.documentElement, { childList: true, subtree: true, characterData: true });
+}
+
 function schedule() {
+  ensureFrameObserver();
   clearTimeout(timer);
   timer = setTimeout(rerun, 500);
 }
@@ -143,13 +174,17 @@ export async function init() {
   }
   chrome.runtime?.onMessage?.addListener(onMessage);
 
-  const mo = new MutationObserver((records) => {
-    let urlChanged = false;
-    if (location.href !== lastUrl) { lastUrl = location.href; dock.setFindings(null, { key: lastUrl }); dock.refreshStatus(); urlChanged = true; }
-    if (urlChanged || records.some((r) => !isOwnMutation(r))) schedule();
-  });
+  const mo = new MutationObserver(onMutations);
   mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
 
   window.__gemDigger = { rerun, get config() { return config; } };
   schedule();
+}
+
+/** Shared MutationObserver callback for both the top-document observer and the interop-iframe
+ * observer (see ensureFrameObserver). Filters out mutations that are entirely our own writes. */
+function onMutations(records) {
+  let urlChanged = false;
+  if (location.href !== lastUrl) { lastUrl = location.href; dock.setFindings(null, { key: lastUrl }); dock.refreshStatus(); urlChanged = true; }
+  if (urlChanged || records.some((r) => !isOwnMutation(r))) schedule();
 }

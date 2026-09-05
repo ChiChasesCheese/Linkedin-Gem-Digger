@@ -27,7 +27,7 @@ export function markCard(el, findings, config) {
   if (sev === 'red' && config?.hideInsteadOfGrey) { el.style.display = 'none'; return; }
   el.style.opacity = sev === 'red' ? '0.45' : '1';
   el.style.borderLeft = `4px solid ${COLORS[sev]}`;
-  const strip = document.createElement('div');
+  const strip = el.ownerDocument.createElement('div');
   strip.className = STRIP_CLASS;
   strip.style.cssText = `font: 11px system-ui; color: ${COLORS[sev]}; padding: 2px 8px 4px 12px;`;
   strip.textContent = findings.map((f) => f.sentence).join(' · ');
@@ -49,6 +49,6 @@ export function setCardStatus(el, text) {
   let s = el.querySelector(`.${STATUS_CLASS}`);
   if (!text) { s?.remove(); return; }
   if (s && s.textContent === text) return; // nothing changed: don't touch the DOM
-  if (!s) { s = document.createElement('div'); s.className = STATUS_CLASS; s.style.cssText = 'font:11px system-ui;color:#888;padding:0 8px 4px 12px;'; el.appendChild(s); }
+  if (!s) { s = el.ownerDocument.createElement('div'); s.className = STATUS_CLASS; s.style.cssText = 'font:11px system-ui;color:#888;padding:0 8px 4px 12px;'; el.appendChild(s); }
   s.textContent = text;
 }

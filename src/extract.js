@@ -1,5 +1,20 @@
 // All DOM *reads* live here. Nothing in this file writes to the page.
 
+/**
+ * The document that actually holds the job UI: LinkedIn's SPA shell ("interop" mode) hosts the
+ * classic Ember pages inside a same-origin `<iframe src=".../preload/...">` (itself inside a
+ * shadow host), while the top document renders nothing. Prefer that iframe's document when it
+ * looks populated; fall back to the top document (classic layout, or a hard-reloaded page).
+ */
+export function getDoc() {
+  try {
+    const f = document.querySelector('iframe[src*="/preload/"]');
+    const d = f?.contentDocument;
+    if (d && d.body && (d.body.innerText || '').length > 200) return d;
+  } catch { /* cross-origin or detached */ }
+  return document;
+}
+
 export const isLinkedIn = () => location.hostname.endsWith('linkedin.com');
 
 /** True on LinkedIn search / collections pages that render a card list. */
@@ -28,7 +43,7 @@ const CARD_SELECTORS = [
 ];
 const CARD_SELECTOR = CARD_SELECTORS.join(', ');
 
-function firstText(selectors, root = document) {
+function firstText(selectors, root = getDoc()) {
   for (const s of selectors) {
     const el = root.querySelector(s);
     const t = el?.innerText?.trim();
@@ -56,11 +71,15 @@ const ABOUT_RE = /^\s*about the job\s*$/i;
  *    climbing past the card list) and try the next heading instead.
  */
 function headingAnchoredContainer() {
-  const headings = [...document.querySelectorAll('h1, h2, h3, h4')].filter((e) => ABOUT_RE.test(e.textContent || ''));
+  const visible = (el) => (el.checkVisibility ? el.checkVisibility() : el.getClientRects().length > 0);
+  const headings = [...getDoc().querySelectorAll('h1, h2, h3, h4')].filter(
+    (e) => ABOUT_RE.test(e.textContent || '') && visible(e)
+  );
   for (const h of headings) {
     let el = h.parentElement ?? null;
     for (let i = 0; el && i < 6; i++) {
       if (el.querySelector(CARD_SELECTOR)) break; // escaped into the card list; try the next heading
+      if (!visible(el)) { el = el.parentElement; continue; }
       const len = (el.innerText || '').trim().length;
       if (len >= 300) return el;
       el = el.parentElement;
@@ -79,7 +98,7 @@ export function getJobText() {
     if (isLinkedInList()) return ''; // never fall back to body on list pages: it would scan every card
   }
   const t = firstText(['main', 'article', '[role="main"]']);
-  return t || document.body?.innerText?.trim() || '';
+  return t || getDoc().body?.innerText?.trim() || '';
 }
 
 /** LinkedIn cards currently in the DOM (LinkedIn virtualises, so this is roughly the visible page). */
@@ -88,7 +107,7 @@ export function getCards() {
   const seen = new Set();
   const out = [];
   for (const sel of CARD_SELECTORS) {
-    for (const el of document.querySelectorAll(sel)) {
+    for (const el of getDoc().querySelectorAll(sel)) {
       const jobId =
         el.getAttribute('data-occludable-job-id') ||
         el.getAttribute('data-job-id') ||
