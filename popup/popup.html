@@ -1,60 +1,16 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Gem Digger</title>
 <style>
-  body { width: 300px; margin: 0; padding: 12px; font: 13px/1.4 system-ui, sans-serif; color: #222; }
+  body { width: 260px; margin: 0; padding: 12px; font: 13px/1.4 system-ui, sans-serif; color: #222; }
   h1 { font-size: 14px; margin: 0 0 8px; }
-  fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 10px; padding: 8px 10px; }
-  legend { font-weight: 600; font-size: 12px; color: #555; }
-  label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0; }
-  input[type=number] { width: 90px; }
-  textarea { width: 100%; box-sizing: border-box; font: inherit; }
-  .row { display: flex; gap: 6px; }
-  button { flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #bbb; background: #f7f7f7; cursor: pointer; }
-  button.primary { background: #0a66c2; color: #fff; border-color: #0a66c2; }
-  button:disabled { opacity: .5; cursor: default; }
-  progress { width: 100%; }
-  #status { font-size: 12px; color: #555; min-height: 16px; }
-  .muted { color: #888; font-size: 11px; }
+  p { color: #555; }
+  button { width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #bbb; background: #f7f7f7; cursor: pointer; margin-top: 8px; }
+  #status { font-size: 12px; color: #555; min-height: 16px; margin-top: 6px; }
 </style></head>
 <body>
 <h1>Linkedin Gem Digger</h1>
-<div class="muted" style="margin-bottom:8px">Checked = treat this as a red flag (grey the card / show it in the panel). Unchecked = ignore it.</div>
-
-<fieldset><legend>Thresholds</legend>
-  <label>Flag if years of experience ≥ <input type="number" id="yoeThreshold" min="0" max="30"></label>
-  <label>Flag if max salary &lt; $ <input type="number" id="salaryFloor" min="0" step="1000"></label>
-  <label>Flag if applicants ≥ <input type="number" id="applicantsMax" min="0"></label>
-</fieldset>
-
-<fieldset><legend>Flag a posting when it says…</legend>
-  <label>Requires ≥ threshold years of experience <input type="checkbox" data-rule="yoe"></label>
-  <label>Requires US citizenship <input type="checkbox" data-rule="citizenship"></label>
-  <label>Requires security clearance / ITAR <input type="checkbox" data-rule="clearance"></label>
-  <label>No visa sponsorship (incl. H-1B) <input type="checkbox" data-rule="sponsorship"></label>
-  <label>Requires PhD / Master's (yellow only) <input type="checkbox" data-rule="degree"></label>
-  <label>Posting is a repost (yellow) <input type="checkbox" data-rule="reposted"></label>
-  <label>&nbsp;&nbsp;treat repost as red instead <input type="checkbox" id="repostedIsRed"></label>
-</fieldset>
-
-<fieldset><legend>Grey out a LinkedIn card when…</legend>
-  <label>Title contains a seniority word: <input type="checkbox" data-rule="title-seniority"></label>
-  <textarea id="titleGreylist" rows="2" placeholder="Senior, Staff, ..."></textarea>
-  <label>Max salary is below the floor <input type="checkbox" data-rule="salary-max"></label>
-  <label>You already viewed it <input type="checkbox" data-rule="viewed"></label>
-  <label>It is a Promoted (paid) listing <input type="checkbox" data-rule="promoted"></label>
-  <label>Applicants ≥ threshold (needs scan) <input type="checkbox" data-rule="applicants"></label>
-  <label>Hide flagged cards instead of greying <input type="checkbox" id="hideInsteadOfGrey"></label>
-</fieldset>
-
-<fieldset><legend>Deep scan (LinkedIn list)</legend>
-  <div class="muted">Fetches each visible card's posting, one at a time, ~1.5 s apart. Cached 7 days.</div>
-  <div class="row" style="margin-top:6px">
-    <button id="scan" class="primary">Scan visible cards</button>
-    <button id="cancel" disabled>Cancel</button>
-  </div>
-  <progress id="progress" value="0" max="1" hidden></progress>
-  <div id="status"></div>
-  <div class="row" style="margin-top:6px"><button id="clear">Clear cache</button></div>
-</fieldset>
+<p>Settings and scanning live in the Gem Digger tab on the right edge of any supported job page.</p>
+<button id="clear">Clear cache</button>
+<div id="status"></div>
 <script type="module" src="popup.js"></script>
 </body></html>

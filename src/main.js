@@ -1,8 +1,9 @@
-import { loadConfig } from './config.js';
+import { loadConfig, saveConfig } from './config.js';
 import { analyze } from './analyze.js';
 import { analyzeCard, parseCardText } from './cards.js';
 import { getJobText, getJobId, getCards, isLinkedInList } from './extract.js';
-import { renderPanel, removePanel, markCard, setCardStatus } from './render.js';
+import { markCard, setCardStatus, DOCK_ID, STRIP_CLASS, STATUS_CLASS } from './render.js';
+import { createDock } from './dock.js';
 import { fetchJobDetail } from './linkedin-api.js';
 import { createScanner, createStorageCache } from './scanner.js';
 
@@ -11,11 +12,12 @@ let timer = null;
 let lastUrl = null;
 let cache = null;
 let abort = null;
+let dock = null;
 const deep = new Map(); // jobId → cache entry applied to a card this page-life
 
-// Elements/attributes we write ourselves (render.js): the observer below must ignore mutations
-// that only touch these, or our own writes would re-trigger schedule() forever.
-const OWN_SELECTOR = '#gem-digger-panel, .gem-digger-strip, .gem-digger-status';
+// Elements/attributes we write ourselves (render.js/dock.js): the observer below must ignore
+// mutations that only touch these, or our own writes would re-trigger schedule() forever.
+const OWN_SELECTOR = `#${DOCK_ID}, .${STRIP_CLASS}, .${STATUS_CLASS}`;
 
 function ownElement(node) {
   return node?.nodeType === 1 ? node : node?.parentElement ?? null;
@@ -49,8 +51,8 @@ function cardFindings(card) {
 
 function runDetail() {
   const text = getJobText();
-  if (!text) { removePanel(); return; }
-  renderPanel(analyze(text, config), { key: getJobId() ?? location.href });
+  if (!text) { dock.setFindings(null, { key: location.href }); return; }
+  dock.setFindings(analyze(text, config), { key: getJobId() ?? location.href });
 }
 
 function runCards() {
@@ -80,7 +82,7 @@ async function startScan() {
 
   scanner.scan(cards, {
     signal: abort.signal,
-    onProgress: (p) => chrome.runtime.sendMessage({ type: 'gem:progress', ...p }).catch(() => {}),
+    onProgress: (p) => { chrome.runtime.sendMessage({ type: 'gem:progress', ...p }).catch(() => {}); dock.setScanProgress(p); },
     onResult: (card, entry) => {
       deep.set(card.jobId, entry);
       setCardStatus(card.el, '');
@@ -89,9 +91,12 @@ async function startScan() {
   }).then((summary) => {
     for (const c of cards) setCardStatus(c.el, '');
     chrome.runtime.sendMessage({ type: 'gem:done', summary }).catch(() => {});
+    dock.setScanDone(summary);
   }).catch((e) => {
     for (const c of cards) setCardStatus(c.el, '');
-    chrome.runtime.sendMessage({ type: 'gem:done', summary: { scanned: 0, cached: 0, failed: 0, aborted: true, rateLimited: false, backoffUntil: 0, error: String(e) } }).catch(() => {});
+    const summary = { scanned: 0, cached: 0, failed: 0, aborted: true, rateLimited: false, backoffUntil: 0, error: String(e) };
+    chrome.runtime.sendMessage({ type: 'gem:done', summary }).catch(() => {});
+    dock.setScanDone(summary);
   }).finally(() => { abort = null; });
 
   return { started: true };
@@ -118,6 +123,18 @@ export async function init() {
   config = await loadConfig();
   cache = createStorageCache();
 
+  dock = createDock({
+    getConfig: () => config,
+    saveConfig,
+    isListPage: () => isLinkedInList(),
+    actions: {
+      scan: () => startScan(),
+      cancel: () => abort?.abort(),
+      clearCache: async () => { await cache.clear(); deep.clear(); rerun(); },
+      status: async () => ({ cards: getCards().length, backoffUntil: (await cache.getBackoff()).backoffUntil, cacheCount: await cache.count() }),
+    },
+  });
+
   if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
     chrome.storage.onChanged.addListener(async (changes, area) => {
       if (area === 'sync' && changes.config) { config = await loadConfig(); rerun(); }
@@ -127,7 +144,7 @@ export async function init() {
 
   const mo = new MutationObserver((records) => {
     let urlChanged = false;
-    if (location.href !== lastUrl) { lastUrl = location.href; removePanel(); urlChanged = true; }
+    if (location.href !== lastUrl) { lastUrl = location.href; dock.setFindings(null, { key: lastUrl }); urlChanged = true; }
     if (urlChanged || records.some((r) => !isOwnMutation(r))) schedule();
   });
   mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
