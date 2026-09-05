@@ -1,7 +1,11 @@
-import { TEXT_RULES, YOE_NOISE, YOE_CAP, SOFTENERS } from './rules.js';
+import { TEXT_RULES, YOE_NOISE, YOE_CAP, SOFTENERS, PAY_KEYWORD_RE } from './rules.js';
 import { DEFAULTS } from './config.js';
+import { parseSalary } from './cards.js';
 
 const SEVERITY_RANK = { red: 2, yellow: 1 };
+// Tie-break within equal severity: lower sorts first. Everything not listed is 0,
+// so 'salary' (1) always sorts after 'yoe' (and every other rule) at equal severity.
+const ID_ORDER = { salary: 1 };
 
 // U+2024 ONE DOT LEADER: stands in for a period inside a two-letter dotted
 // abbreviation (U.S., U.K., e.g., i.e., ...) while we split on sentence
@@ -27,11 +31,23 @@ function clone(re) { return new RegExp(re.source, re.flags.includes('g') ? re.fl
  */
 export function analyze(text, config = DEFAULTS) {
   const rules = TEXT_RULES.filter((r) => config.rules?.[r.id] ?? r.defaultOn);
+  const salaryOn = config.rules?.['salary-max'] ?? DEFAULTS.rules['salary-max'];
   const seen = new Set();
   const out = [];
+  let bestSalary = null; // keep only the lowest (most severe) max across sentences
 
   for (const sentence of splitSentences(text)) {
     const soft = SOFTENERS.test(sentence);
+
+    if (salaryOn && sentence.includes('$') && PAY_KEYWORD_RE.test(sentence)) {
+      const parsed = parseSalary(sentence);
+      if (parsed && typeof parsed.max === 'number' && parsed.max < config.salaryFloor) {
+        if (!bestSalary || parsed.max < bestSalary.value) {
+          bestSalary = { id: 'salary', category: 'salary', severity: 'red', value: parsed.max, sentence: sentence.slice(0, 240) };
+        }
+      }
+    }
+
     for (const rule of rules) {
       const re = clone(rule.pattern);
       let m;
@@ -54,8 +70,12 @@ export function analyze(text, config = DEFAULTS) {
     }
   }
 
+  if (bestSalary) out.push(bestSalary);
+
   return out.sort((a, b) =>
-    (SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]) || ((b.value ?? -1) - (a.value ?? -1)));
+    (SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]) ||
+    ((ID_ORDER[a.id] ?? 0) - (ID_ORDER[b.id] ?? 0)) ||
+    ((b.value ?? -1) - (a.value ?? -1)));
 }
 
 export function worstSeverity(findings) {

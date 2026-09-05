@@ -14,6 +14,9 @@ export const YOE_CAP = /\b(?:no more than|not more than|up to|less than|fewer th
 /** A softener in the same sentence downgrades red → yellow. */
 export const SOFTENERS = /\b(preferred|nice to have|a plus|bonus|ideally|plus but not required)\b/i;
 
+/** Sentences must mention one of these alongside a $ amount to count as a stated salary. */
+export const PAY_KEYWORD_RE = /\b(salary|salaries|compensation|base pay|pay range|pay rate|per hour|hourly|per year|annually|annual|\/yr|\/hr|\/hour|a year|an hour)\b/i;
+
 /** Titles that must never be greyed by the seniority greylist. */
 export const TITLE_EXEMPT = /\b(intern(ship)?|new grad(uate)?|entry[- ]level|junior|early[- ]career|university grad(uate)?)\b/i;
 

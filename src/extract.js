@@ -29,9 +29,31 @@ function firstText(selectors, root = document) {
   return '';
 }
 
+const ABOUT_RE = /^\s*about the job\s*$/i;
+
+/**
+ * Container of the posting anchored on the "About the job" heading, or null.
+ * LinkedIn's newer /jobs/view/<id>/ layout uses hashed class names that don't match
+ * LI_DETAIL_SELECTORS, so we climb from that heading looking for an ancestor whose
+ * innerText is long enough to be the whole posting (title, meta, salary, description)
+ * without also picking up unrelated page chrome.
+ */
+function headingAnchoredContainer() {
+  const h = [...document.querySelectorAll('h1, h2, h3, h4')].find((e) => ABOUT_RE.test(e.textContent || ''));
+  let el = h?.parentElement ?? null;
+  for (let i = 0; el && i < 6; i++) {
+    const len = (el.innerText || '').trim().length;
+    if (len >= 300) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
 /** JD text for the posting the user is looking at. Empty string if nothing usable. */
 export function getJobText() {
   if (isLinkedIn()) {
+    const anchored = headingAnchoredContainer()?.innerText?.trim();
+    if (anchored && anchored.length > 80) return anchored;
     const t = firstText(LI_DETAIL_SELECTORS);
     if (t) return t;
     if (isLinkedInList()) return ''; // never fall back to body on list pages: it would scan every card

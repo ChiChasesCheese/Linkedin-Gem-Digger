@@ -142,6 +142,44 @@ test('ordering: red before yellow, higher yoe first; duplicates collapsed', () =
   ]);
 });
 
+test('salary: stated max below floor is flagged red, keyed off config.salaryFloor', () => {
+  const text = 'The U.S. base salary range for this full-time position is $125,000 - $175,000. ' +
+    'Salary ranges are determined by role, level, and location.';
+  const f = analyze(text, { ...DEFAULTS, salaryFloor: 200000 });
+  assert.equal(f.length, 1);
+  assert.deepEqual({ id: f[0].id, severity: f[0].severity, value: f[0].value }, { id: 'salary', severity: 'red', value: 175000 });
+
+  assert.deepEqual(analyze(text).filter((x) => x.id === 'salary'), []);
+});
+
+test('salary: hourly rate is annualised (×2080)', () => {
+  const f = analyze('Pay: $45 - $55 per hour.');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].id, 'salary');
+  assert.equal(f[0].value, 114400);
+});
+
+test('salary: a bonus/signing amount alone is not a stated salary', () => {
+  assert.deepEqual(analyze('You will receive a $5,000 signing bonus.'), []);
+});
+
+test('salary: base salary sentence still counts even with a bonus mentioned in it', () => {
+  const f = analyze('Compensation: $90K–$110K plus a $3,000 sign-on bonus.');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].id, 'salary');
+  assert.equal(f[0].value, 110000);
+});
+
+test('salary: rule can be disabled via config.rules["salary-max"]', () => {
+  const cfg = { ...DEFAULTS, rules: { ...DEFAULTS.rules, 'salary-max': false } };
+  assert.deepEqual(analyze('Pay: $45 - $55 per hour.', cfg), []);
+});
+
+test('ordering: salary sorts after yoe at equal (red) severity', () => {
+  const f = analyze('5+ years of Go. Salary: $100,000 - $120,000.');
+  assert.deepEqual(ids(f), ['yoe', 'salary']);
+});
+
 test('worstSeverity', () => {
   assert.equal(worstSeverity([]), 'green');
   assert.equal(worstSeverity([{ severity: 'yellow' }]), 'yellow');
