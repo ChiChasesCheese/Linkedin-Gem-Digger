@@ -8,6 +8,7 @@ const LABELS = {
 };
 
 const dismissed = new Set();
+let collapsed = false;
 
 function worst(findings) {
   if (findings.some((f) => f.severity === 'red')) return 'red';
@@ -23,20 +24,27 @@ function valueLabel(f) {
   return '';
 }
 
+function findingsSig(findings) {
+  return findings.map((f) => `${f.id}:${f.severity}:${f.sentence}`).join('|');
+}
+
 /** Draw or update the bottom-right panel. `key` identifies the posting so a dismissed panel stays dismissed. */
 export function renderPanel(findings, { key = location.href } = {}) {
   if (dismissed.has(key)) return;
   let host = document.getElementById(PANEL_ID);
+  const sig = `${key}||${findingsSig(findings)}`;
+  if (host && host.dataset.gemSig === sig) return; // nothing changed: skip the rebuild (preserves collapse state, avoids churn)
   if (!host) {
     host = document.createElement('div');
     host.id = PANEL_ID;
     host.attachShadow({ mode: 'open' });
     document.documentElement.appendChild(host);
   }
+  host.dataset.gemSig = sig;
   const sev = worst(findings);
   const rows = findings.length
     ? findings.map((f) => `
-        <div class="row ${f.severity}">
+        <div class="row ${esc(f.severity)}">
           <span class="badge">${esc(LABELS[f.id] ?? f.id)}</span>
           <span class="val">${esc(valueLabel(f))}</span>
           <div class="sent">${esc(f.sentence)}</div>
@@ -66,7 +74,11 @@ export function renderPanel(findings, { key = location.href } = {}) {
       ${rows}
     </div>`;
   const box = host.shadowRoot.querySelector('.box');
-  host.shadowRoot.querySelector('.hd').addEventListener('click', () => box.classList.toggle('collapsed'));
+  box.classList.toggle('collapsed', collapsed);
+  host.shadowRoot.querySelector('.hd').addEventListener('click', () => {
+    collapsed = !collapsed;
+    box.classList.toggle('collapsed', collapsed);
+  });
   host.shadowRoot.querySelector('button').addEventListener('click', (e) => { e.stopPropagation(); dismissed.add(key); removePanel(); });
 }
 
@@ -76,9 +88,16 @@ export function removePanel() {
 
 const STRIP_CLASS = 'gem-digger-strip';
 
-/** Grey out (or hide) a LinkedIn card and add a one-line reason strip. Idempotent. */
+function cardSig(findings, config) {
+  return `${findingsSig(findings)}|${config?.hideInsteadOfGrey ? 'hide' : 'grey'}`;
+}
+
+/** Grey out (or hide) a LinkedIn card and add a one-line reason strip. Idempotent; a true no-op when nothing changed. */
 export function markCard(el, findings, config) {
+  const sig = cardSig(findings, config);
+  if (el.dataset.gemSig === sig) return; // nothing changed: don't touch the DOM (avoids a MutationObserver feedback loop)
   unmarkCard(el);
+  el.dataset.gemSig = sig;
   if (!findings.length) return;
   const sev = worst(findings);
   el.dataset.gemSeverity = sev;
@@ -94,6 +113,7 @@ export function markCard(el, findings, config) {
 
 export function unmarkCard(el) {
   delete el.dataset.gemSeverity;
+  delete el.dataset.gemSig;
   el.style.opacity = '';
   el.style.borderLeft = '';
   el.style.display = '';
@@ -105,6 +125,7 @@ export function unmarkCard(el) {
 export function setCardStatus(el, text) {
   let s = el.querySelector('.gem-digger-status');
   if (!text) { s?.remove(); return; }
+  if (s && s.textContent === text) return; // nothing changed: don't touch the DOM
   if (!s) { s = document.createElement('div'); s.className = 'gem-digger-status'; s.style.cssText = 'font:11px system-ui;color:#888;padding:0 8px 4px 12px;'; el.appendChild(s); }
   s.textContent = text;
 }

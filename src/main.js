@@ -8,6 +8,26 @@ let config;
 let timer = null;
 let lastUrl = null;
 
+// Elements/attributes we write ourselves (render.js): the observer below must ignore mutations
+// that only touch these, or our own writes would re-trigger schedule() forever.
+const OWN_SELECTOR = '#gem-digger-panel, .gem-digger-strip, .gem-digger-status';
+
+function ownElement(node) {
+  return node?.nodeType === 1 ? node : node?.parentElement ?? null;
+}
+
+function isOwn(node) {
+  const el = ownElement(node);
+  return !!el?.closest?.(OWN_SELECTOR);
+}
+
+/** True when a MutationRecord is entirely explained by our own DOM writes. */
+function isOwnMutation(record) {
+  if (isOwn(record.target)) return true;
+  const nodes = [...record.addedNodes, ...record.removedNodes];
+  return nodes.length > 0 && nodes.every(isOwn);
+}
+
 function runDetail() {
   const text = getJobText();
   if (!text) { removePanel(); return; }
@@ -43,9 +63,10 @@ export async function init() {
     });
   }
 
-  const mo = new MutationObserver(() => {
-    if (location.href !== lastUrl) { lastUrl = location.href; removePanel(); }
-    schedule();
+  const mo = new MutationObserver((records) => {
+    let urlChanged = false;
+    if (location.href !== lastUrl) { lastUrl = location.href; removePanel(); urlChanged = true; }
+    if (urlChanged || records.some((r) => !isOwnMutation(r))) schedule();
   });
   mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
 
