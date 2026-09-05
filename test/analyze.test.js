@@ -57,6 +57,14 @@ test('yoe: cap phrasing is not a minimum requirement', () => {
   assert.equal(analyze('Minimum of 4 years of experience')[0].value, 4);
 });
 
+test('yoe: a bare "max"/"Max" elsewhere in the sentence does not suppress a real requirement', () => {
+  const f = analyze('Max salary is 150k, 5+ years of experience required.');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].id, 'yoe');
+  assert.equal(f[0].value, 5);
+  assert.deepEqual(analyze('maximum of 2 years'), []);
+});
+
 test('yoe: noise sentences are ignored', () => {
   assert.deepEqual(analyze('Founded 12 years ago. 4 weeks vacation and 5 years warranty.'), []);
   assert.deepEqual(analyze('We have a 10 year track record.'), []);
