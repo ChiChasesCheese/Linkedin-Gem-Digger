@@ -18,31 +18,32 @@
 </style></head>
 <body>
 <h1>Linkedin Gem Digger</h1>
+<div class="muted" style="margin-bottom:8px">Checked = treat this as a red flag (grey the card / show it in the panel). Unchecked = ignore it.</div>
 
 <fieldset><legend>Thresholds</legend>
-  <label>Grey if YOE ≥ <input type="number" id="yoeThreshold" min="0" max="30"></label>
-  <label>Grey if max salary &lt; $ <input type="number" id="salaryFloor" min="0" step="1000"></label>
-  <label>Grey if applicants ≥ <input type="number" id="applicantsMax" min="0"></label>
+  <label>Flag if years of experience ≥ <input type="number" id="yoeThreshold" min="0" max="30"></label>
+  <label>Flag if max salary &lt; $ <input type="number" id="salaryFloor" min="0" step="1000"></label>
+  <label>Flag if applicants ≥ <input type="number" id="applicantsMax" min="0"></label>
 </fieldset>
 
-<fieldset><legend>Posting text rules</legend>
-  <label>Years of experience <input type="checkbox" data-rule="yoe"></label>
-  <label>US citizenship <input type="checkbox" data-rule="citizenship"></label>
-  <label>Security clearance / ITAR <input type="checkbox" data-rule="clearance"></label>
-  <label>No sponsorship / H-1B <input type="checkbox" data-rule="sponsorship"></label>
-  <label>Degree required (info) <input type="checkbox" data-rule="degree"></label>
-  <label>Reposted <input type="checkbox" data-rule="reposted"></label>
-  <label>&nbsp;&nbsp;treat Reposted as red <input type="checkbox" id="repostedIsRed"></label>
+<fieldset><legend>Flag a posting when it says…</legend>
+  <label>Requires ≥ threshold years of experience <input type="checkbox" data-rule="yoe"></label>
+  <label>Requires US citizenship <input type="checkbox" data-rule="citizenship"></label>
+  <label>Requires security clearance / ITAR <input type="checkbox" data-rule="clearance"></label>
+  <label>No visa sponsorship (incl. H-1B) <input type="checkbox" data-rule="sponsorship"></label>
+  <label>Requires PhD / Master's (yellow only) <input type="checkbox" data-rule="degree"></label>
+  <label>Posting is a repost (yellow) <input type="checkbox" data-rule="reposted"></label>
+  <label>&nbsp;&nbsp;treat repost as red instead <input type="checkbox" id="repostedIsRed"></label>
 </fieldset>
 
-<fieldset><legend>LinkedIn card rules</legend>
-  <label>Seniority in title <input type="checkbox" data-rule="title-seniority"></label>
+<fieldset><legend>Grey out a LinkedIn card when…</legend>
+  <label>Title contains a seniority word: <input type="checkbox" data-rule="title-seniority"></label>
   <textarea id="titleGreylist" rows="2" placeholder="Senior, Staff, ..."></textarea>
-  <label>Low salary <input type="checkbox" data-rule="salary-max"></label>
-  <label>Already viewed <input type="checkbox" data-rule="viewed"></label>
-  <label>Promoted <input type="checkbox" data-rule="promoted"></label>
-  <label>100+ applicants (needs scan) <input type="checkbox" data-rule="applicants"></label>
-  <label>Hide instead of grey <input type="checkbox" id="hideInsteadOfGrey"></label>
+  <label>Max salary is below the floor <input type="checkbox" data-rule="salary-max"></label>
+  <label>You already viewed it <input type="checkbox" data-rule="viewed"></label>
+  <label>It is a Promoted (paid) listing <input type="checkbox" data-rule="promoted"></label>
+  <label>Applicants ≥ threshold (needs scan) <input type="checkbox" data-rule="applicants"></label>
+  <label>Hide flagged cards instead of greying <input type="checkbox" id="hideInsteadOfGrey"></label>
 </fieldset>
 
 <fieldset><legend>Deep scan (LinkedIn list)</legend>
