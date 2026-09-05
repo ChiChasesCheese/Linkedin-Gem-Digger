@@ -1,7 +1,5 @@
 import { DEFAULTS } from './config.js';
-
-// TODO(task4): import from ./rules.js
-const TITLE_EXEMPT = /\b(intern(ship)?|new grad(uate)?|entry[- ]level|junior|early[- ]career|university grad(uate)?)\b/i;
+import { TITLE_EXEMPT } from './rules.js';
 
 const MONEY = /\$\s?(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?(?:\s*(?:\/|per|a)\s*(yr|year|hr|hour|mo|month))?/g;
 
