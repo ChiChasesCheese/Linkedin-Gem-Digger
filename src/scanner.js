@@ -37,6 +37,11 @@ export function createStorageCache(area = chrome.storage.local) {
 
 const defaultSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Runs a caller-supplied hook (onResult/onProgress) without letting it affect the scan. */
+async function safeCall(fn, ...args) {
+  try { await fn(...args); } catch (e) { console.warn('[gem-digger] scan hook failed', e); }
+}
+
 /**
  * Serial, jittered, cached scanner. The ONLY code path that fetches job details.
  */
@@ -63,21 +68,19 @@ export function createScanner({
       const hit = await cache.get(card.jobId);
       if (hit && now() - hit.ts < ttl()) {
         summary.cached++; done++;
-        await onResult(card, hit, true);
-        onProgress({ done, total });
+        await safeCall(onResult, card, hit, true);
+        await safeCall(onProgress, { done, total });
         continue;
       }
 
       if (networkCalls > 0) await sleep(gap());
       networkCalls++;
+      let entry;
       try {
         const d = await fetchDetail(card.jobId);
-        const entry = { ts: now(), applies: d.applies ?? null, reposted: !!d.reposted, findings: analyzeText(d.text ?? '', config) };
+        entry = { ts: now(), applies: d.applies ?? null, reposted: !!d.reposted, findings: analyzeText(d.text ?? '', config) };
         await cache.set(card.jobId, entry);
         await cache.setBackoff({ backoffMs: 0, backoffUntil: 0 });
-        summary.scanned++; done++;
-        await onResult(card, entry, false);
-        onProgress({ done, total });
       } catch (e) {
         if (e instanceof RateLimitError) {
           const prev = (await cache.getBackoff()).backoffMs;
@@ -87,8 +90,12 @@ export function createScanner({
           return { ...summary, rateLimited: true, aborted: true, backoffUntil };
         }
         summary.failed++; done++;
-        onProgress({ done, total });
+        await safeCall(onProgress, { done, total });
+        continue;
       }
+      summary.scanned++; done++;
+      await safeCall(onResult, card, entry, false);
+      await safeCall(onProgress, { done, total });
     }
     return summary;
   }

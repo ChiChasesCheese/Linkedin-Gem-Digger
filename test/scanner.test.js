@@ -111,3 +111,34 @@ test('cards without jobId are skipped', async () => {
   const r = await h.scanner.scan([{ jobId: null }, { jobId: 'a' }], {});
   assert.deepEqual(h.calls, ['a']); assert.equal(r.scanned, 1);
 });
+
+test('onResult throwing on a network result does not lose the summary or double-count', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const h = harness();
+  let calls = 0;
+  const r = await h.scanner.scan(cards('a', 'b'), {
+    onResult: () => { calls++; if (calls === 1) throw new Error('boom'); },
+  });
+  assert.deepEqual(h.calls, ['a', 'b']);
+  assert.equal(r.scanned, 2);
+  assert.equal(r.failed, 0);
+});
+
+test('onResult throwing on a cache-hit card still resolves with the correct cached count', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const h = harness();
+  await h.scanner.scan(cards('a'), {});
+  h.calls.length = 0;
+  const r = await h.scanner.scan(cards('a'), { onResult: () => { throw new Error('boom'); } });
+  assert.deepEqual(h.calls, []);
+  assert.equal(r.cached, 1);
+});
+
+test('onProgress throwing does not affect counters or loop continuation', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const h = harness();
+  const r = await h.scanner.scan(cards('a', 'b'), { onProgress: () => { throw new Error('boom'); } });
+  assert.deepEqual(h.calls, ['a', 'b']);
+  assert.equal(r.scanned, 2);
+  assert.equal(r.failed, 0);
+});
