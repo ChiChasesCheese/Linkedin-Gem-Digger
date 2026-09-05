@@ -20,6 +20,14 @@ const LI_DETAIL_SELECTORS = [
   '[class*="job-details-module"]',
 ];
 
+const CARD_SELECTORS = [
+  'li[data-occludable-job-id]',
+  'div[data-job-id]',
+  'li.jobs-search-results__list-item',
+  'li.scaffold-layout__list-item',
+];
+const CARD_SELECTOR = CARD_SELECTORS.join(', ');
+
 function firstText(selectors, root = document) {
   for (const s of selectors) {
     const el = root.querySelector(s);
@@ -32,19 +40,31 @@ function firstText(selectors, root = document) {
 const ABOUT_RE = /^\s*about the job\s*$/i;
 
 /**
- * Container of the posting anchored on the "About the job" heading, or null.
+ * Container of the posting anchored on an "About the job" heading, or null.
  * LinkedIn's newer /jobs/view/<id>/ layout uses hashed class names that don't match
  * LI_DETAIL_SELECTORS, so we climb from that heading looking for an ancestor whose
  * innerText is long enough to be the whole posting (title, meta, salary, description)
  * without also picking up unrelated page chrome.
+ *
+ * Two guards:
+ *  - A page can render more than one matching heading (e.g. a "Similar jobs" card
+ *    also headed "About the job"); if the first heading's ancestor chain never
+ *    reaches the length threshold, try the next heading rather than giving up.
+ *  - On the search-results split view, walking up from the detail-pane heading can
+ *    escape into an ancestor that also contains the card list. If a candidate
+ *    ancestor contains a job card, abandon this heading's chain (don't keep
+ *    climbing past the card list) and try the next heading instead.
  */
 function headingAnchoredContainer() {
-  const h = [...document.querySelectorAll('h1, h2, h3, h4')].find((e) => ABOUT_RE.test(e.textContent || ''));
-  let el = h?.parentElement ?? null;
-  for (let i = 0; el && i < 6; i++) {
-    const len = (el.innerText || '').trim().length;
-    if (len >= 300) return el;
-    el = el.parentElement;
+  const headings = [...document.querySelectorAll('h1, h2, h3, h4')].filter((e) => ABOUT_RE.test(e.textContent || ''));
+  for (const h of headings) {
+    let el = h.parentElement ?? null;
+    for (let i = 0; el && i < 6; i++) {
+      if (el.querySelector(CARD_SELECTOR)) break; // escaped into the card list; try the next heading
+      const len = (el.innerText || '').trim().length;
+      if (len >= 300) return el;
+      el = el.parentElement;
+    }
   }
   return null;
 }
@@ -61,13 +81,6 @@ export function getJobText() {
   const t = firstText(['main', 'article', '[role="main"]']);
   return t || document.body?.innerText?.trim() || '';
 }
-
-const CARD_SELECTORS = [
-  'li[data-occludable-job-id]',
-  'div[data-job-id]',
-  'li.jobs-search-results__list-item',
-  'li.scaffold-layout__list-item',
-];
 
 /** LinkedIn cards currently in the DOM (LinkedIn virtualises, so this is roughly the visible page). */
 export function getCards() {
