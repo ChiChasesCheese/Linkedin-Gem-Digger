@@ -27,9 +27,33 @@ function stripHtml(html) {
     .replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
 }
 
+// Extracts the inner HTML of the show-more-less-html__markup container by
+// counting nested <div>/</div> tokens, since the description commonly nests
+// <div>/<ul>/<p> blocks and a lazy regex to the first </div> truncates it.
+function extractMarkupDiv(html) {
+  const openRe = /<div[^>]*class="[^"]*show-more-less-html__markup[^"]*"[^>]*>/i;
+  const openMatch = openRe.exec(html);
+  if (!openMatch) return '';
+  const start = openMatch.index + openMatch[0].length;
+  const tagRe = /<div\b[^>]*>|<\/div\s*>/gi;
+  tagRe.lastIndex = start;
+  let depth = 1;
+  let m;
+  while ((m = tagRe.exec(html))) {
+    if (m[0].toLowerCase().startsWith('</div')) {
+      depth--;
+      if (depth === 0) return html.slice(start, m.index);
+    } else {
+      depth++;
+    }
+  }
+  // Depth never closed: fall back to everything to end of string.
+  return html.slice(start);
+}
+
 export function parseGuestHtml(html) {
   const h = String(html ?? '');
-  const desc = h.match(/<div[^>]*class="[^"]*show-more-less-html__markup[^"]*"[^>]*>([\s\S]*?)<\/div>/i)?.[1] ?? '';
+  const desc = extractMarkupDiv(h);
   const applicants = h.match(/num-applicants__caption[^>]*>([\s\S]*?)</i)?.[1] ?? '';
   const posted = h.match(/posted-time-ago__text[^>]*>([\s\S]*?)</i)?.[1] ?? '';
   const n = applicants.match(/\d+/);

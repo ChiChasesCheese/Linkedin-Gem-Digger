@@ -33,6 +33,21 @@ test('parseGuestHtml strips tags and reads capped applicants + reposted', () => 
   assert.equal(r.reposted, true);
 });
 
+test('parseGuestHtml does not truncate description at a nested </div>', () => {
+  const html = `<div class="show-more-less-html__markup"><p>3+ years of Rust.</p><div>Nested block.</div><ul><li>No sponsorship available.</li></ul></div>
+<span class="posted-time-ago__text">Reposted 2 days ago</span>
+<figcaption class="num-applicants__caption">Over 200 applicants</figcaption>`;
+  const r = parseGuestHtml(html);
+  assert.ok(r.text.includes('No sponsorship'), `expected text to include "No sponsorship", got: ${r.text}`);
+});
+
+test('parseGuestHtml defaults applies to null and reposted to false when those blocks are absent', () => {
+  const html = `<div class="show-more-less-html__markup">Just a description, no applicants or posted-time markup.</div>`;
+  const r = parseGuestHtml(html);
+  assert.equal(r.applies, null);
+  assert.equal(r.reposted, false);
+});
+
 test('fetchJobDetail uses Voyager with csrf header', async () => {
   const calls = [];
   const fetch = async (url, opts) => { calls.push({ url, opts }); return res(200, VOYAGER); };
