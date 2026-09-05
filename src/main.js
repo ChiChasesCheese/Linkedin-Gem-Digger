@@ -18,9 +18,14 @@ const deep = new Map(); // jobId → cache entry applied to a card this page-lif
 // LinkedIn's SPA shell ("interop" mode) hosts the classic job pages inside a same-origin
 // `iframe[src*="/preload/"]`, invisible to a content script that only observes the top document.
 // These track the frame observer so we can (re)wire it to whichever contentDocument is current.
+// lastFrameEl/lastFrameDoc track which iframe/document the observer is currently attached to;
+// loadBound tracks "has this element ever gotten a load listener" independently, so an element
+// that flaps between accessible/inaccessible contentDocument (round-1 reset clears lastFrameEl)
+// never accumulates duplicate load listeners.
 let frameObserver = null;
 let lastFrameDoc = null;
 let lastFrameEl = null;
+const loadBound = new WeakSet();
 
 // Elements/attributes we write ourselves (render.js/dock.js): the observer below must ignore
 // mutations that only touch these, or our own writes would re-trigger schedule() forever.
@@ -89,8 +94,9 @@ function ensureFrameObserver() {
 
   if (!d) {
     // Iframe gone (navigated off the interop shell entirely) or its document is inaccessible:
-    // drop the observer and forget the element/document so nothing stale lingers, and so a
-    // freshly (re)created iframe later is treated as new (re-wires the load listener too).
+    // drop the observer and forget which element/document it was attached to, so nothing stale
+    // lingers. loadBound is untouched here — it tracks listener attachment, not observer
+    // wiring, so an element that later becomes accessible again doesn't get a duplicate listener.
     frameObserver?.disconnect();
     frameObserver = null;
     lastFrameEl = null;
@@ -98,12 +104,13 @@ function ensureFrameObserver() {
     return;
   }
 
-  if (f !== lastFrameEl) {
-    lastFrameEl = f;
+  if (!loadBound.has(f)) {
+    loadBound.add(f);
     f.addEventListener('load', () => { ensureFrameObserver(); schedule(); });
   }
   if (d === lastFrameDoc) return;
   frameObserver?.disconnect();
+  lastFrameEl = f;
   lastFrameDoc = d;
   frameObserver = new MutationObserver(onMutations);
   frameObserver.observe(d.documentElement, { childList: true, subtree: true, characterData: true });
