@@ -1,13 +1,21 @@
-import { TEXT_RULES, YOE_NOISE, SOFTENERS } from './rules.js';
+import { TEXT_RULES, YOE_NOISE, YOE_CAP, SOFTENERS } from './rules.js';
 import { DEFAULTS } from './config.js';
 
 const SEVERITY_RANK = { red: 2, yellow: 1 };
 
+// U+2024 ONE DOT LEADER: stands in for a period inside a two-letter dotted
+// abbreviation (U.S., U.K., e.g., i.e., ...) while we split on sentence
+// boundaries, so those periods are never mistaken for sentence-enders.
+const ABBREV_PLACEHOLDER = '․';
+const ABBREV_RE = /\b([A-Za-z])\.([A-Za-z])\./g;
+const RESTORE_RE = new RegExp(ABBREV_PLACEHOLDER, 'g');
+
 /** Split JD text into trimmed, non-empty sentence-like chunks. */
 export function splitSentences(text) {
-  return String(text ?? '')
-    .split(/(?<=[.;!?])(?<!\b[A-Za-z]\.)\s+|\n+|\r+|[•·▪◦]|(?:^|\n)\s*[-*]\s+/)
-    .map((s) => s.replace(/^[\s\-*•·]+/, '').replace(/[.;!?]+\s*$/, '').trim())
+  const protectedText = String(text ?? '').replace(ABBREV_RE, `$1${ABBREV_PLACEHOLDER}$2${ABBREV_PLACEHOLDER}`);
+  return protectedText
+    .split(/(?<=[.;!?])\s+|\n+|\r+|[•·▪◦]|(?:^|\n)\s*[-*]\s+/)
+    .map((s) => s.replace(RESTORE_RE, '.').replace(/^[\s\-*•·]+/, '').replace(/[.;!?]+\s*$/, '').trim())
     .filter(Boolean);
 }
 
@@ -30,7 +38,7 @@ export function analyze(text, config = DEFAULTS) {
       while ((m = re.exec(sentence))) {
         let value;
         if (rule.id === 'yoe') {
-          if (YOE_NOISE.test(sentence)) continue;
+          if (YOE_NOISE.test(sentence) || YOE_CAP.test(sentence)) continue;
           value = rule.extract(m);
           if (!(value >= config.yoeThreshold)) continue;
         }

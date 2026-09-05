@@ -10,6 +10,17 @@ test('splitSentences splits on period, semicolon, newline and bullets', () => {
   assert.deepEqual(s, ['Foo bar', 'Baz', 'qux', 'Item one', 'Item two']);
 });
 
+test('splitSentences protects two-letter dotted abbreviations but still splits real sentence boundaries', () => {
+  assert.deepEqual(
+    splitSentences('This is plan B. Next quarter we pivot.'),
+    ['This is plan B', 'Next quarter we pivot'],
+  );
+  assert.deepEqual(
+    splitSentences('e.g. Go or Rust. Also Python.'),
+    ['e.g. Go or Rust', 'Also Python'],
+  );
+});
+
 test('yoe: flags 3+ years at default threshold 2', () => {
   const f = analyze('Requirements: 3+ years of experience with Go.');
   assert.equal(f.length, 1);
@@ -29,6 +40,21 @@ test('yoe: range takes the minimum, number words map to digits', () => {
 test('yoe: below threshold is not reported', () => {
   assert.deepEqual(analyze('1+ years of experience'), []);
   assert.deepEqual(analyze('1-2 years of experience', { ...DEFAULTS, yoeThreshold: 3 }), []);
+});
+
+test('yoe: "to" ranges and bare "+" are parsed', () => {
+  assert.equal(analyze('3 to 5 years of experience')[0].value, 3);
+  assert.equal(analyze('10+ years of experience')[0].value, 10);
+});
+
+test('yoe: cap phrasing is not a minimum requirement', () => {
+  assert.deepEqual(analyze('No more than 2 years of experience'), []);
+  assert.deepEqual(analyze('Not more than 2 years of experience'), []);
+  assert.deepEqual(analyze('Up to 2 years of experience'), []);
+  assert.deepEqual(analyze('Less than 2 years of experience'), []);
+  assert.deepEqual(analyze('Fewer than 2 years of experience'), []);
+  assert.equal(analyze('At least 3 years of experience')[0].value, 3);
+  assert.equal(analyze('Minimum of 4 years of experience')[0].value, 4);
 });
 
 test('yoe: noise sentences are ignored', () => {

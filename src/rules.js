@@ -8,6 +8,9 @@ const NUM = '(\\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)';
 /** Sentences containing these are never YOE requirements. */
 export const YOE_NOISE = /\b(benefits?|vacation|pto|founded|history|ago|track record|years? old|warranty|anniversary)\b/i;
 
+/** Sentences phrasing YOE as a cap ("no more than", "up to") are not a minimum requirement. */
+export const YOE_CAP = /\b(?:no more than|not more than|up to|less than|fewer than|maximum of|max(?:imum)?)\b/i;
+
 /** A softener in the same sentence downgrades red → yellow. */
 export const SOFTENERS = /\b(preferred|nice to have|a plus|bonus|ideally|plus but not required)\b/i;
 
