@@ -1,1 +1,59 @@
-<!doctype html><meta charset="utf-8"><title>Gem Digger</title><body style="min-width:240px;padding:12px;font:13px system-ui">Settings coming in Task 7.</body>
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Gem Digger</title>
+<style>
+  body { width: 300px; margin: 0; padding: 12px; font: 13px/1.4 system-ui, sans-serif; color: #222; }
+  h1 { font-size: 14px; margin: 0 0 8px; }
+  fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 10px; padding: 8px 10px; }
+  legend { font-weight: 600; font-size: 12px; color: #555; }
+  label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0; }
+  input[type=number] { width: 90px; }
+  textarea { width: 100%; box-sizing: border-box; font: inherit; }
+  .row { display: flex; gap: 6px; }
+  button { flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #bbb; background: #f7f7f7; cursor: pointer; }
+  button.primary { background: #0a66c2; color: #fff; border-color: #0a66c2; }
+  button:disabled { opacity: .5; cursor: default; }
+  progress { width: 100%; }
+  #status { font-size: 12px; color: #555; min-height: 16px; }
+  .muted { color: #888; font-size: 11px; }
+</style></head>
+<body>
+<h1>Linkedin Gem Digger</h1>
+
+<fieldset><legend>Thresholds</legend>
+  <label>Grey if YOE ≥ <input type="number" id="yoeThreshold" min="0" max="30"></label>
+  <label>Grey if max salary &lt; $ <input type="number" id="salaryFloor" min="0" step="1000"></label>
+  <label>Grey if applicants ≥ <input type="number" id="applicantsMax" min="0"></label>
+</fieldset>
+
+<fieldset><legend>Posting text rules</legend>
+  <label>Years of experience <input type="checkbox" data-rule="yoe"></label>
+  <label>US citizenship <input type="checkbox" data-rule="citizenship"></label>
+  <label>Security clearance / ITAR <input type="checkbox" data-rule="clearance"></label>
+  <label>No sponsorship / H-1B <input type="checkbox" data-rule="sponsorship"></label>
+  <label>Degree required (info) <input type="checkbox" data-rule="degree"></label>
+  <label>Reposted <input type="checkbox" data-rule="reposted"></label>
+  <label>&nbsp;&nbsp;treat Reposted as red <input type="checkbox" id="repostedIsRed"></label>
+</fieldset>
+
+<fieldset><legend>LinkedIn card rules</legend>
+  <label>Seniority in title <input type="checkbox" data-rule="title-seniority"></label>
+  <textarea id="titleGreylist" rows="2" placeholder="Senior, Staff, ..."></textarea>
+  <label>Low salary <input type="checkbox" data-rule="salary-max"></label>
+  <label>Already viewed <input type="checkbox" data-rule="viewed"></label>
+  <label>Promoted <input type="checkbox" data-rule="promoted"></label>
+  <label>100+ applicants (needs scan) <input type="checkbox" data-rule="applicants"></label>
+  <label>Hide instead of grey <input type="checkbox" id="hideInsteadOfGrey"></label>
+</fieldset>
+
+<fieldset><legend>Deep scan (LinkedIn list)</legend>
+  <div class="muted">Fetches each visible card's posting, one at a time, ~1.5 s apart. Cached 7 days.</div>
+  <div class="row" style="margin-top:6px">
+    <button id="scan" class="primary">Scan visible cards</button>
+    <button id="cancel" disabled>Cancel</button>
+  </div>
+  <progress id="progress" value="0" max="1" hidden></progress>
+  <div id="status"></div>
+  <div class="row" style="margin-top:6px"><button id="clear">Clear cache</button></div>
+</fieldset>
+<script type="module" src="popup.js"></script>
+</body></html>
