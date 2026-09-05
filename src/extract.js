@@ -1,5 +1,12 @@
 // All DOM *reads* live here. Nothing in this file writes to the page.
 
+// getDoc() is called many times per rerun pass (once per DOM read in this file); memoize its
+// result for a short window so repeated calls within one synchronous pass don't repeat the
+// querySelector + document probe. A rerun pass finishes well under 250ms; the next debounced
+// rerun (500ms later, see main.js's schedule()) recomputes.
+let cachedDoc = null;
+let cachedDocTs = -Infinity;
+
 /**
  * The document that actually holds the job UI: LinkedIn's SPA shell ("interop" mode) hosts the
  * classic Ember pages inside a same-origin `<iframe src=".../preload/...">` (itself inside a
@@ -7,12 +14,21 @@
  * looks populated; fall back to the top document (classic layout, or a hard-reloaded page).
  */
 export function getDoc() {
+  const now = performance.now();
+  if (cachedDoc && now - cachedDocTs < 250) return cachedDoc;
+  let result = document;
   try {
     const f = document.querySelector('iframe[src*="/preload/"]');
     const d = f?.contentDocument;
-    if (d && d.body && (d.body.innerText || '').length > 200) return d;
+    // Cheap populated-check that avoids forcing layout (no innerText read): readyState plus
+    // childElementCount plus a textContent length probe.
+    if (d && d.body && d.readyState !== 'loading' && d.body.childElementCount > 0 && (d.body.textContent || '').length > 200) {
+      result = d;
+    }
   } catch { /* cross-origin or detached */ }
-  return document;
+  cachedDoc = result;
+  cachedDocTs = now;
+  return result;
 }
 
 export const isLinkedIn = () => location.hostname.endsWith('linkedin.com');
@@ -77,9 +93,11 @@ function headingAnchoredContainer() {
   );
   for (const h of headings) {
     let el = h.parentElement ?? null;
-    for (let i = 0; el && i < 6; i++) {
+    let steps = 0;
+    while (el && steps < 6) {
       if (el.querySelector(CARD_SELECTOR)) break; // escaped into the card list; try the next heading
-      if (!visible(el)) { el = el.parentElement; continue; }
+      if (!visible(el)) { el = el.parentElement; continue; } // doesn't count against the climb budget
+      steps++;
       const len = (el.innerText || '').trim().length;
       if (len >= 300) return el;
       el = el.parentElement;

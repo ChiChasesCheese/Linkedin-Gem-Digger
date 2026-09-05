@@ -84,12 +84,25 @@ export function rerun() {
  */
 function ensureFrameObserver() {
   const f = document.querySelector('iframe[src*="/preload/"]');
-  if (f && f !== lastFrameEl) {
+  let d = null;
+  try { d = f?.contentDocument ?? null; } catch { d = null; } // cross-origin or detached
+
+  if (!d) {
+    // Iframe gone (navigated off the interop shell entirely) or its document is inaccessible:
+    // drop the observer and forget the element/document so nothing stale lingers, and so a
+    // freshly (re)created iframe later is treated as new (re-wires the load listener too).
+    frameObserver?.disconnect();
+    frameObserver = null;
+    lastFrameEl = null;
+    lastFrameDoc = null;
+    return;
+  }
+
+  if (f !== lastFrameEl) {
     lastFrameEl = f;
     f.addEventListener('load', () => { ensureFrameObserver(); schedule(); });
   }
-  const d = f?.contentDocument;
-  if (!d || d === lastFrameDoc) return;
+  if (d === lastFrameDoc) return;
   frameObserver?.disconnect();
   lastFrameDoc = d;
   frameObserver = new MutationObserver(onMutations);
