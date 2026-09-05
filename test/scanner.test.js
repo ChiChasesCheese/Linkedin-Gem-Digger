@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createScanner, createMemoryCache, MIN_BACKOFF_MS } from '../src/scanner.js';
+import { createScanner, createMemoryCache, MIN_BACKOFF_MS, LOCK_TTL_MS } from '../src/scanner.js';
 import { RateLimitError } from '../src/linkedin-api.js';
 import { DEFAULTS } from '../src/config.js';
 
@@ -22,7 +22,7 @@ function harness({ detail = {}, clock = 1_000_000_000_000 } = {}) {
     analyzeText: (text) => (text.includes('5+') ? [{ id: 'yoe', severity: 'red', value: 5, sentence: text }] : []),
     now: () => t, sleep: async (ms) => { sleeps.push(ms); t += ms; }, random: () => 0.5,
   });
-  return { scanner, calls, sleeps, cache, tick: (ms) => { t += ms; } };
+  return { scanner, calls, sleeps, cache, tick: (ms) => { t += ms; }, now: () => t };
 }
 
 const cards = (...ids) => ids.map((jobId) => ({ jobId }));
@@ -38,7 +38,7 @@ test('scans serially, sleeps between network calls, reports progress and results
   assert.deepEqual(results, [['a', 1, 10, false], ['b', 0, 150, false]]);
   assert.deepEqual(progress, [1, 2]);
   assert.deepEqual(h.sleeps, [1500]);            // one gap between two calls; jitter 0 at random()=0.5
-  assert.deepEqual(r, { scanned: 2, cached: 0, failed: 0, aborted: false, rateLimited: false, backoffUntil: 0 });
+  assert.deepEqual(r, { scanned: 2, cached: 0, failed: 0, aborted: false, rateLimited: false, backoffUntil: 0, locked: false });
 });
 
 test('jitter uses random()', async () => {
@@ -141,4 +141,58 @@ test('onProgress throwing does not affect counters or loop continuation', async 
   assert.deepEqual(h.calls, ['a', 'b']);
   assert.equal(r.scanned, 2);
   assert.equal(r.failed, 0);
+});
+
+test('a fresh lock held by another scanner blocks the scan with zero fetches', async () => {
+  const cache = createMemoryCache();
+  const calls2 = [];
+  // scanner1 and scanner2 share the same cache (simulating two tabs) but use different
+  // `random` values, so they would generate different lock tokens.
+  createScanner({ fetchDetail: async () => ({ text: '', applies: 0, reposted: false }), cache, config: DEFAULTS,
+    now: () => 1_000_000_000_000, sleep: async () => {}, random: () => 0.1 });
+  const scanner2 = createScanner({ fetchDetail: async (id) => { calls2.push(id); return { text: '', applies: 0, reposted: false }; }, cache, config: DEFAULTS,
+    now: () => 1_000_000_000_000, sleep: async () => {}, random: () => 0.9 });
+
+  // Simulate scanner1 currently holding a fresh lock (e.g. mid-scan in another tab).
+  await cache.setLock({ token: `${0.1}:1000000000000`, ts: 1_000_000_000_000 });
+
+  const r2 = await scanner2.scan(cards('b'), {});
+  assert.equal(r2.locked, true);
+  assert.equal(r2.aborted, true);
+  assert.deepEqual(calls2, []);
+});
+
+test('a stale lock (older than LOCK_TTL_MS) is overridden and the scan proceeds', async () => {
+  const h = harness();
+  await h.cache.setLock({ token: 'other-tab', ts: h.now() - (LOCK_TTL_MS + 1) });
+  const r = await h.scanner.scan(cards('a'), {});
+  assert.deepEqual(h.calls, ['a']);
+  assert.equal(r.locked, false);
+  assert.equal(r.aborted, false);
+});
+
+test('the lock is cleared after a normal scan completes', async () => {
+  const h = harness();
+  const r = await h.scanner.scan(cards('a'), {});
+  assert.equal(r.locked, false);
+  assert.equal(await h.cache.getLock(), undefined);
+});
+
+test('a lock stolen mid-scan (fetchDetail side effect) stops the scan before the next fetch', async () => {
+  const cache = createMemoryCache();
+  const calls = [];
+  let t = 1_000_000_000_000;
+  const fetchDetail = async (id) => {
+    calls.push(id);
+    if (id === 'a') await cache.setLock({ token: 'thief', ts: t });
+    return { jobId: id, text: '', applies: 0, reposted: false };
+  };
+  const scanner = createScanner({
+    fetchDetail, cache, config: DEFAULTS,
+    now: () => t, sleep: async (ms) => { t += ms; }, random: () => 0.5,
+  });
+  const r = await scanner.scan(cards('a', 'b'), {});
+  assert.deepEqual(calls, ['a']);
+  assert.equal(r.locked, true);
+  assert.equal(r.aborted, true);
 });

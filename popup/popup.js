@@ -62,6 +62,8 @@ chrome.runtime.onMessage.addListener((msg) => {
     const s = msg.summary;
     $('status').textContent = s.error
       ? `Scan failed: ${s.error}`
+      : s.locked
+      ? `Another tab is scanning. Wait for it to finish.`
       : s.rateLimited
       ? `Rate-limited. Stopped. Try after ${fmtTime(s.backoffUntil)}.`
       : `Done: ${s.scanned} fetched, ${s.cached} cached, ${s.failed} failed${s.aborted ? ', cancelled' : ''}.`;

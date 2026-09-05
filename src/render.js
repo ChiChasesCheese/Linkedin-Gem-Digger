@@ -1,4 +1,6 @@
 // All DOM *writes* live here. Panel uses a shadow root so host CSS cannot leak in.
+import { worstSeverity } from './analyze.js';
+
 const PANEL_ID = 'gem-digger-panel';
 const COLORS = { red: '#c62828', yellow: '#ef6c00', green: '#2e7d32' };
 const LABELS = {
@@ -9,12 +11,6 @@ const LABELS = {
 
 const dismissed = new Set();
 let collapsed = false;
-
-function worst(findings) {
-  if (findings.some((f) => f.severity === 'red')) return 'red';
-  if (findings.some((f) => f.severity === 'yellow')) return 'yellow';
-  return 'green';
-}
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -41,7 +37,7 @@ export function renderPanel(findings, { key = location.href } = {}) {
     document.documentElement.appendChild(host);
   }
   host.dataset.gemSig = sig;
-  const sev = worst(findings);
+  const sev = worstSeverity(findings);
   const rows = findings.length
     ? findings.map((f) => `
         <div class="row ${esc(f.severity)}">
@@ -99,7 +95,7 @@ export function markCard(el, findings, config) {
   unmarkCard(el);
   el.dataset.gemSig = sig;
   if (!findings.length) return;
-  const sev = worst(findings);
+  const sev = worstSeverity(findings);
   el.dataset.gemSeverity = sev;
   if (sev === 'red' && config?.hideInsteadOfGrey) { el.style.display = 'none'; return; }
   el.style.opacity = sev === 'red' ? '0.45' : '1';

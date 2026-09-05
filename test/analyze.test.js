@@ -89,6 +89,34 @@ test('citizenship / clearance / sponsorship patterns', () => {
   assert.deepEqual(ids(analyze('Will not sponsor H-1B.')).sort(), ['sponsorship']);
 });
 
+test('citizenship pattern accepts plural "citizens"', () => {
+  assert.deepEqual(ids(analyze('Applicants must be U.S. citizens.')), ['citizenship']);
+});
+
+test('sponsorship: bare mention of H-1B without a negation is not a red flag', () => {
+  assert.deepEqual(analyze('We are happy to sponsor H-1B visas.'), []);
+});
+
+test('sponsorship: "no"/"not available" phrasing next to H-1B is flagged', () => {
+  const f1 = analyze('No H-1B sponsorship available.');
+  assert.equal(f1.length, 1);
+  assert.equal(f1[0].id, 'sponsorship');
+
+  const f2 = analyze('H-1B transfer not available.');
+  assert.equal(f2.length, 1);
+  assert.equal(f2[0].id, 'sponsorship');
+});
+
+test('sponsorship: "authorized/eligible to work without sponsorship" phrasing is flagged', () => {
+  const f1 = analyze('Must be authorized to work in the US without sponsorship now or in the future.');
+  assert.equal(f1.length, 1);
+  assert.equal(f1[0].id, 'sponsorship');
+
+  const f2 = analyze('Candidates must be eligible to work in the United States without visa sponsorship.');
+  assert.equal(f2.length, 1);
+  assert.equal(f2[0].id, 'sponsorship');
+});
+
 test('degree rule is off by default and yellow when enabled', () => {
   assert.deepEqual(analyze('PhD required.'), []);
   const cfg = { ...DEFAULTS, rules: { ...DEFAULTS.rules, degree: true } };

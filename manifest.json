@@ -27,6 +27,23 @@
     }
   ],
   "web_accessible_resources": [
-    { "resources": ["src/*"], "matches": ["<all_urls>"] }
+    {
+      "resources": ["src/*"],
+      "matches": [
+        "https://www.linkedin.com/jobs/*",
+        "https://jobs.ashbyhq.com/*",
+        "https://*.ashbyhq.com/*",
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://jobs.smartrecruiters.com/*",
+        "https://wellfound.com/*",
+        "https://apply.workable.com/*",
+        "https://jobs.jobvite.com/*",
+        "https://*.icims.com/*",
+        "https://ats.rippling.com/*"
+      ]
+    }
   ]
 }

@@ -32,7 +32,7 @@ export const TEXT_RULES = [
   },
   {
     id: 'citizenship', category: 'citizenship', severity: 'red', scope: 'text', defaultOn: true,
-    pattern: /\b(?:u\.?s\.?\s+citizen(?:ship)?\s+(?:is\s+)?(?:required|only|mandatory)|must\s+be\s+(?:a\s+)?u\.?s\.?\s+citizen|u\.?s\.?\s+persons?\s+only|citizenship\s+(?:is\s+)?required)\b/gi,
+    pattern: /\b(?:u\.?s\.?\s+citizen(?:s|ship)?\s+(?:is\s+)?(?:required|only|mandatory)|must\s+be\s+(?:a\s+)?u\.?s\.?\s+citizens?|u\.?s\.?\s+persons?\s+only|citizenship\s+(?:is\s+)?required)\b/gi,
   },
   {
     id: 'clearance', category: 'clearance', severity: 'red', scope: 'text', defaultOn: true,
@@ -40,7 +40,7 @@ export const TEXT_RULES = [
   },
   {
     id: 'sponsorship', category: 'sponsorship', severity: 'red', scope: 'text', defaultOn: true,
-    pattern: /\b(?:no\s+(?:visa\s+)?sponsorship|(?:unable|not\s+able|will\s+not|cannot|can't|do(?:es)?\s+not)\s+(?:to\s+)?(?:provide\s+|offer\s+)?sponsor(?:ship)?|h-?1b)\b/gi,
+    pattern: /\b(?:no\s+(?:visa\s+)?sponsorship|(?:unable|not\s+able|will\s+not|cannot|can't|do(?:es)?\s+not)\s+(?:to\s+)?(?:provide\s+|offer\s+)?sponsor(?:ship)?|(?:no|not|cannot|unable to|will not|won't|do(?:es)? not)\s+(?:provide\s+|offer\s+)?(?:h-?1b|visa)\s+(?:sponsorship|transfer)|h-?1b\s+(?:sponsorship|transfers?)\s+(?:is\s+)?(?:not\s+available|unavailable)|(?:authorized|authorised|eligible)\s+to\s+work\s+(?:in\s+the\s+(?:u\.?s\.?a?|united\s+states)\s+)?without\s+(?:the\s+need\s+for\s+|requiring\s+)?(?:visa\s+)?sponsorship|(?:without|no)\s+(?:current\s+or\s+future\s+)?(?:need\s+for\s+)?(?:visa\s+)?sponsorship)\b/gi,
   },
   {
     id: 'degree', category: 'degree', severity: 'yellow', scope: 'text', defaultOn: false,
