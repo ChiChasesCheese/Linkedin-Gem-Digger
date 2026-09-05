@@ -21,8 +21,16 @@ function deepMerge(base, over) {
   for (const k of Object.keys(base)) {
     const b = base[k];
     const o = over?.[k];
-    if (isPlainObject(b)) out[k] = deepMerge(b, isPlainObject(o) ? o : {});
-    else out[k] = o === undefined ? (Array.isArray(b) ? [...b] : b) : o;
+    const defaultValue = () => (Array.isArray(b) ? [...b] : b);
+    if (isPlainObject(b)) {
+      out[k] = deepMerge(b, isPlainObject(o) ? o : {});
+    } else if (o === undefined || o === null) {
+      out[k] = defaultValue();
+    } else if (Array.isArray(o) === Array.isArray(b) && typeof o === typeof b) {
+      out[k] = Array.isArray(o) ? [...o] : o;
+    } else {
+      out[k] = defaultValue();
+    }
   }
   return out;
 }

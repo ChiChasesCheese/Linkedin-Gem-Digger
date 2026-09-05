@@ -29,3 +29,20 @@ test('mergeConfig replaces arrays wholesale', () => {
   const cfg = mergeConfig({ titleGreylist: ['VP'] });
   assert.deepEqual(cfg.titleGreylist, ['VP']);
 });
+
+test('mergeConfig rejects a wrong-type array leaf and keeps the default', () => {
+  const cfg = mergeConfig({ titleGreylist: 'Senior' });
+  assert.deepEqual(cfg.titleGreylist, DEFAULTS.titleGreylist);
+});
+
+test('mergeConfig rejects a wrong-type scalar leaf and keeps the default', () => {
+  assert.equal(mergeConfig({ yoeThreshold: 'high' }).yoeThreshold, 2);
+});
+
+test('mergeConfig rejects a wrong-type nested leaf and keeps the default', () => {
+  assert.equal(mergeConfig({ rules: { degree: 'yes' } }).rules.degree, false);
+});
+
+test('mergeConfig still accepts a valid same-type override', () => {
+  assert.equal(mergeConfig({ yoeThreshold: 5 }).yoeThreshold, 5);
+});
