@@ -60,7 +60,9 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.type === 'gem:done') {
     setScanning(false);
     const s = msg.summary;
-    $('status').textContent = s.rateLimited
+    $('status').textContent = s.error
+      ? `Scan failed: ${s.error}`
+      : s.rateLimited
       ? `Rate-limited. Stopped. Try after ${fmtTime(s.backoffUntil)}.`
       : `Done: ${s.scanned} fetched, ${s.cached} cached, ${s.failed} failed${s.aborted ? ', cancelled' : ''}.`;
   }

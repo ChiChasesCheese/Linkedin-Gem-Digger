@@ -6,8 +6,9 @@ requirements, "no sponsorship", and (on LinkedIn search results) seniority in th
 low salary, already-viewed, reposted and 100+ applicants.
 
 Works on LinkedIn Jobs and on Ashby, Greenhouse, Lever, Workday, SmartRecruiters,
-Wellfound, Workable, Jobvite, iCIMS and Rippling posting pages. Everything runs locally;
-nothing leaves your browser.
+Wellfound, Workable, Jobvite, iCIMS and Rippling posting pages. Everything runs locally.
+The only network requests are the ones the deep scan makes directly to linkedin.com when
+you click Scan; nothing is sent anywhere else.
 
 ## Install (unpacked)
 

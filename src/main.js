@@ -89,6 +89,9 @@ async function startScan() {
   }).then((summary) => {
     for (const c of cards) setCardStatus(c.el, '');
     chrome.runtime.sendMessage({ type: 'gem:done', summary }).catch(() => {});
+  }).catch((e) => {
+    for (const c of cards) setCardStatus(c.el, '');
+    chrome.runtime.sendMessage({ type: 'gem:done', summary: { scanned: 0, cached: 0, failed: 0, aborted: true, rateLimited: false, backoffUntil: 0, error: String(e) } }).catch(() => {});
   }).finally(() => { abort = null; });
 
   return { started: true };
@@ -120,7 +123,7 @@ export async function init() {
       if (area === 'sync' && changes.config) { config = await loadConfig(); rerun(); }
     });
   }
-  chrome.runtime.onMessage.addListener(onMessage);
+  chrome.runtime?.onMessage?.addListener(onMessage);
 
   const mo = new MutationObserver((records) => {
     let urlChanged = false;
