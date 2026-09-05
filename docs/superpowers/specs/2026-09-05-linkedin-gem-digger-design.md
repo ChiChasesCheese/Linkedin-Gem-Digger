@@ -138,9 +138,13 @@ Only annual figures are compared to the floor; hourly is converted.
            reposted:true, 'title-seniority':true, 'salary-max':true, viewed:true,
            promoted:false, applicants:true },
   repostedIsRed: false, hideInsteadOfGrey: false,
-  scan: { intervalMs: 1500, jitterMs: 500, cacheTtlDays: 7, backoffMs: 0, backoffUntil: 0 }
+  scan: { intervalMs: 1500, jitterMs: 500, cacheTtlDays: 7 }
 }
 ```
+
+Runtime scan state is **not** synced: back-off (`backoff` → `{ backoffMs, backoffUntil }`), the
+cross-tab scan lock (`lock` → `{ token, ts }`, 2-minute heartbeat TTL), and the per-job cache
+(`job:<id>`) live in `chrome.storage.local`. Only one tab can scan at a time.
 
 ## Sites (manifest `matches`)
 
