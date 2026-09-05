@@ -30,7 +30,7 @@
     {
       "resources": ["src/*"],
       "matches": [
-        "https://www.linkedin.com/jobs/*",
+        "https://www.linkedin.com/*",
         "https://jobs.ashbyhq.com/*",
         "https://*.ashbyhq.com/*",
         "https://boards.greenhouse.io/*",
