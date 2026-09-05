@@ -63,6 +63,7 @@ function runCards() {
 export function rerun() {
   runCards();
   runDetail();
+  dock.refreshStatus();
 }
 
 function schedule() {
@@ -144,7 +145,7 @@ export async function init() {
 
   const mo = new MutationObserver((records) => {
     let urlChanged = false;
-    if (location.href !== lastUrl) { lastUrl = location.href; dock.setFindings(null, { key: lastUrl }); urlChanged = true; }
+    if (location.href !== lastUrl) { lastUrl = location.href; dock.setFindings(null, { key: lastUrl }); dock.refreshStatus(); urlChanged = true; }
     if (urlChanged || records.some((r) => !isOwnMutation(r))) schedule();
   });
   mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true });

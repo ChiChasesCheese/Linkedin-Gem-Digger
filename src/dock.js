@@ -174,7 +174,7 @@ export function createDock({ getConfig, saveConfig, isListPage, actions }) {
   if (typeof chrome !== 'undefined' && chrome.storage?.local) {
     chrome.storage.local.get('dockOpen').then(({ dockOpen }) => { if (dockOpen) setOpen(true); }).catch(() => {});
   }
-  tab.addEventListener('click', () => { setOpen(!open); if (open) refreshStatus(); });
+  tab.addEventListener('click', () => { setOpen(!open); if (open) applyStatus(); });
   $('gd-close').addEventListener('click', () => setOpen(false));
 
   function renderFlags(findings) {
@@ -209,9 +209,11 @@ export function createDock({ getConfig, saveConfig, isListPage, actions }) {
     if (!r?.started) { setScanning(false); statusEl.textContent = r?.reason ?? 'Could not start scan.'; }
   });
   cancelBtn.addEventListener('click', () => actions.cancel());
-  $('gd-clear').addEventListener('click', async () => { await actions.clearCache(); refreshStatus(); });
+  $('gd-clear').addEventListener('click', async () => { await actions.clearCache(); applyStatus(); });
 
-  async function refreshStatus() {
+  /** Actual status query + redraw. Not exported directly: main.js's rerun()/URL-change hook can
+   * fire in bursts, and this hits chrome.storage, so the public refreshStatus() below debounces it. */
+  async function applyStatus() {
     const listPage = isListPage();
     scanSection.hidden = !listPage;
     if (!listPage) return;
@@ -223,6 +225,15 @@ export function createDock({ getConfig, saveConfig, isListPage, actions }) {
       statusEl.textContent = `${s.cards} cards on page · cache: ${s.cacheCount} jobs.`;
       scanBtn.disabled = s.cards === 0;
     }
+  }
+
+  // Public refreshStatus(): coalesces bursts of calls (e.g. from schedule()'s rerun() firing
+  // repeatedly during page churn) into a single applyStatus() every 500ms. No polling: if nothing
+  // calls it, no timer is ever running.
+  let refreshTimer = null;
+  function refreshStatus() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(applyStatus, 500);
   }
 
   function setScanProgress({ done, total }) {
@@ -276,7 +287,7 @@ export function createDock({ getConfig, saveConfig, isListPage, actions }) {
   $('gd-settings').addEventListener('change', () => saveConfig(read()));
 
   fill();
-  refreshStatus();
+  applyStatus();
 
   return { setFindings, setScanProgress, setScanDone, refreshStatus };
 }
