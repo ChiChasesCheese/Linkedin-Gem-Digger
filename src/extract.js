@@ -137,14 +137,16 @@ function headingAnchoredContainer() {
  * visible job-title <h1> rather than scanning the whole body: walk up a few levels looking for
  * the first ancestor that isn't the card list and whose text matches META_RE.
  */
-function postingMetaLines() {
-  const visible = (el) => (el.checkVisibility ? el.checkVisibility() : el.getClientRects().length > 0);
-  const h1 = [...getDoc().querySelectorAll('h1')].find(visible);
-  if (!h1) return [];
+function postingMetaLines(container) {
+  // The posting header ("Reposted 1 day ago · Over 100 people clicked apply") sits OUTSIDE the
+  // "About the job" container and its title is not always an <h1>. Walk up from the container to
+  // the nearest ancestor that carries meta phrases; stop before anything that holds job cards
+  // (similar-jobs lists) so we never pick up another posting's numbers.
+  if (!container) return [];
   const metaRe = new RegExp(META_RE.source, META_RE.flags);
-  let el = h1.parentElement ?? null;
-  for (let steps = 0; el && steps < 4; steps++, el = el.parentElement) {
-    if (el.querySelector(CARD_SELECTOR)) continue;
+  let el = container.parentElement ?? null;
+  for (let steps = 0; el && steps < 6; steps++, el = el.parentElement) {
+    if (el.querySelector(CARD_SELECTOR)) break;
     const text = el.innerText || '';
     metaRe.lastIndex = 0;
     if (metaRe.test(text)) return extractMetaPhrases(text);
@@ -155,9 +157,10 @@ function postingMetaLines() {
 /** JD text for the posting the user is looking at. Empty string if nothing usable. */
 export function getJobText() {
   if (isLinkedIn()) {
-    const anchored = headingAnchoredContainer()?.innerText?.trim();
+    const container = headingAnchoredContainer();
+    const anchored = container?.innerText?.trim();
     if (anchored && anchored.length > 80) {
-      const meta = postingMetaLines();
+      const meta = postingMetaLines(container);
       return meta.length ? `${anchored}\n${meta.join('\n')}` : anchored;
     }
     const t = firstText(LI_DETAIL_SELECTORS);
