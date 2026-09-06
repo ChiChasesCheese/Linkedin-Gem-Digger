@@ -27,13 +27,15 @@ const CARD_SELECTOR = CARD_SELECTORS.join(', ');
 /**
  * Score how populated a document is with real job UI (job cards, an "About the job" heading, a
  * link into a job view), vs. an empty shell. Cheap: a handful of querySelector calls, no
- * innerText read, no layout forced.
+ * innerText read; checkVisibility runs only on the one or two headings whose text matches, so a
+ * hidden leftover "About the job" (previous SPA route) does not earn the point.
  */
 function jobUiScore(doc) {
   if (!doc?.body) return -1;
   let s = 0;
   if (doc.querySelector(CARD_SELECTOR)) s += 2;
-  if ([...doc.querySelectorAll('h1, h2, h3, h4')].some((e) => ABOUT_RE.test(e.textContent || ''))) s += 2;
+  const visible = (el) => (el.checkVisibility ? el.checkVisibility() : el.getClientRects().length > 0);
+  if ([...doc.querySelectorAll('h1, h2, h3, h4')].some((e) => ABOUT_RE.test(e.textContent || '') && visible(e))) s += 2;
   if (doc.querySelector('a[href*="/jobs/view/"]')) s += 1;
   return s;
 }
@@ -144,10 +146,14 @@ function postingMetaLines(container) {
   // (similar-jobs lists) so we never pick up another posting's numbers.
   if (!container) return [];
   const metaRe = new RegExp(META_RE.source, META_RE.flags);
+  const baseLen = Math.max(1, (container.innerText || '').length);
   let el = container.parentElement ?? null;
   for (let steps = 0; el && steps < 6; steps++, el = el.parentElement) {
     if (el.querySelector(CARD_SELECTOR)) break;
     const text = el.innerText || '';
+    // Similar-jobs blocks may lack our card selectors; once an ancestor is several times the
+    // posting's size we have left the posting and would pick up other listings' numbers.
+    if (text.length > 3 * baseLen) break;
     metaRe.lastIndex = 0;
     if (metaRe.test(text)) return extractMetaPhrases(text);
   }
