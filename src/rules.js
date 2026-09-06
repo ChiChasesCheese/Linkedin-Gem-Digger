@@ -11,14 +11,29 @@ export const YOE_NOISE = /\b(benefits?|vacation|pto|founded|history|ago|track re
 /** Sentences phrasing YOE as a cap ("no more than", "up to") are not a minimum requirement. */
 export const YOE_CAP = /\b(?:no more than|not more than|up to|less than|fewer than|maximum of)\b/i;
 
+/**
+ * Company-history / tenure phrasing ("For 25 years, ENFOS has helped...", "Celebrating 30
+ * years in business", "The team has shipped for 12 years") is never a YOE requirement.
+ */
+export const YOE_COMPANY_RE =
+  /\b(?:for|over|nearly|almost|celebrating|with)\s+(?:the\s+(?:past|last)\s+)?(?:more than\s+|over\s+)?\d{1,3}\+?\s+years,?\s+(?:we|our|us|it|[A-Za-z][\w&.'-]*)\s+(?:has|have|had|is|are|been|'ve|'s)\b|\byears?\s+in\s+business\b|(?<!experience\s)\byears?\s+of\s+(?:operation|service|success|growth|innovation|leadership in)\b|\b(?:has|have|had)\s+[a-z]+(?:ed|en)\s+for\s+\d{1,3}\+?\s+years\b/i;
+
+/** YOE context required AFTER a matched "N years" span (within 50 chars) to count as a requirement. */
+export const YOE_AFTER_CTX =
+  /\b(?:of|in|with|as|building|developing|designing|working|writing|programming|coding|using|on|experience|exp\.?|professional|hands-on|industry|relevant|background|shipping|leading|managing)\b/i;
+
+/** YOE context required BEFORE a matched "N years" span (within 50 chars) to count as a requirement. */
+export const YOE_BEFORE_CTX =
+  /\b(?:experience|exp\.?|minimum|min\.?|at least|require[sd]?|must have|must possess|ideally|preferably|looking for|have|has|possess|bring|over|more than|with)\b/i;
+
 /** A softener in the same sentence downgrades red → yellow. */
 export const SOFTENERS = /\b(preferred|nice to have|a plus|bonus|ideally|plus but not required)\b/i;
 
 /** Sentences must mention one of these alongside a $ amount to count as a stated salary. */
 export const PAY_KEYWORD_RE = /\b(salary|salaries|compensation|base pay|pay range|pay rate|per hour|hourly|per year|annually|annual|\/yr|\/hr|\/hour|a year|an hour)\b/i;
 
-/** Matches "88 applicants" / "Over 100 people clicked apply"; group 1 is the applicant count. */
-export const APPLICANTS_RE = /\b(?:over\s+)?(\d{1,5})\+?\s+(?:applicants|people\s+clicked\s+apply)\b/i;
+/** Matches "88 applicants" / "1,234 applicants" / "Over 100 people clicked apply"; group 1 is the applicant count (comma-grouped digits allowed). */
+export const APPLICANTS_RE = /\b(?:over\s+)?(\d{1,3}(?:,\d{3})+|\d{1,5})\+?\s+(?:applicants|people\s+clicked\s+apply)\b/i;
 
 /** Titles that must never be greyed by the seniority greylist. */
 export const TITLE_EXEMPT = /\b(intern(ship)?|new grad(uate)?|entry[- ]level|junior|early[- ]career|university grad(uate)?)\b/i;

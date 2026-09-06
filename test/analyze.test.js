@@ -70,6 +70,36 @@ test('yoe: noise sentences are ignored', () => {
   assert.deepEqual(analyze('We have a 10 year track record.'), []);
 });
 
+test('yoe: company-history phrasing is not a YOE requirement', () => {
+  assert.deepEqual(
+    analyze("For 25 years, ENFOS has helped the world's leading industrial companies stay audit-ready."),
+    [],
+  );
+  assert.deepEqual(analyze('Over the past 10 years we have grown to 500 employees.'), []);
+  assert.deepEqual(analyze('Celebrating 30 years in business.'), []);
+  assert.deepEqual(analyze('The team has shipped for 12 years.'), []);
+});
+
+test('yoe: context required before or after the match to count as a requirement', () => {
+  const f1 = analyze('Experience Required: 10+ Years');
+  assert.equal(f1.length, 1);
+  assert.equal(f1[0].id, 'yoe');
+  assert.equal(f1[0].value, 10);
+
+  const f2 = analyze('5+ years of hands-on backend software engineering experience');
+  assert.equal(f2[0].value, 5);
+
+  const f3 = analyze('Requires 3 years Python and 2 years Go.').filter((x) => x.id === 'yoe');
+  assert.ok(f3.length >= 1);
+  assert.equal(f3[0].value, 3);
+
+  const f4 = analyze('We want someone with 4+ years building distributed systems.');
+  assert.equal(f4[0].value, 4);
+
+  const f5 = analyze('Must have 6 years in a similar role.');
+  assert.equal(f5[0].value, 6);
+});
+
 test('softener in the same sentence downgrades to yellow', () => {
   const f = analyze('5+ years of Kubernetes experience preferred.');
   assert.equal(f[0].severity, 'yellow');
@@ -208,6 +238,13 @@ test('applicants: not softener-downgradable', () => {
   const f = analyze('Over 100 people clicked apply, ideally fewer.');
   assert.equal(f.length, 1);
   assert.equal(f[0].severity, 'red');
+});
+
+test('applicants: comma-grouped counts are parsed in full, not truncated at the comma', () => {
+  const f = analyze('1,234 applicants');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].id, 'applicants');
+  assert.equal(f[0].value, 1234);
 });
 
 test('applicants: one finding max, keeps the highest value', () => {

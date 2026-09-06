@@ -1,4 +1,7 @@
-import { TEXT_RULES, YOE_NOISE, YOE_CAP, SOFTENERS, PAY_KEYWORD_RE, APPLICANTS_RE } from './rules.js';
+import {
+  TEXT_RULES, YOE_NOISE, YOE_CAP, YOE_COMPANY_RE, YOE_AFTER_CTX, YOE_BEFORE_CTX,
+  SOFTENERS, PAY_KEYWORD_RE, APPLICANTS_RE,
+} from './rules.js';
 import { DEFAULTS } from './config.js';
 import { parseSalary } from './cards.js';
 
@@ -79,7 +82,7 @@ export function analyze(text, config = DEFAULTS) {
       // ideally fewer" is still 88 applicants.
       const am = sentence.match(APPLICANTS_RE);
       if (am) {
-        const value = parseInt(am[1], 10);
+        const value = parseInt(am[1].replace(/,/g, ''), 10);
         if (value >= applicantsMax && (!bestApplicants || value > bestApplicants.value)) {
           bestApplicants = { id: 'applicants', category: 'competition', severity: 'red', value, sentence: sentence.slice(0, 240) };
         }
@@ -92,7 +95,11 @@ export function analyze(text, config = DEFAULTS) {
       while ((m = re.exec(sentence))) {
         let value;
         if (rule.id === 'yoe') {
-          if (YOE_NOISE.test(sentence) || YOE_CAP.test(sentence)) continue;
+          if (YOE_NOISE.test(sentence) || YOE_CAP.test(sentence) || YOE_COMPANY_RE.test(sentence)) continue;
+          const afterText = sentence.slice(re.lastIndex, re.lastIndex + 50);
+          const beforeText = sentence.slice(Math.max(0, m.index - 50), m.index);
+          const hasContext = YOE_AFTER_CTX.test(afterText) || YOE_BEFORE_CTX.test(beforeText) || /:\s*$/.test(beforeText);
+          if (!hasContext) continue;
           value = rule.extract(m);
           if (!(value >= config.yoeThreshold)) continue;
         }
