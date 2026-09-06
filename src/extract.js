@@ -131,10 +131,14 @@ export function getJobText() {
   return t || getDoc().body?.innerText?.trim() || '';
 }
 
-function sduiTitle(el) {
-  if (!el.hasAttribute('componentkey')) return '';
-  const lines = (el.innerText || '').split('\n').map((l) => l.trim()).filter(Boolean);
+/** Title from an SDUI card's innerText: line 1 is an a11y label ("Selected, <title>", "<title> (Verified job)"), line 2 the plain title. */
+export function sduiTitleFromText(text) {
+  const lines = String(text ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
   return lines[1] || lines[0] || '';
+}
+
+function sduiTitle(el) {
+  return el.hasAttribute('componentkey') ? sduiTitleFromText(el.innerText) : '';
 }
 
 /** LinkedIn cards currently in the DOM (LinkedIn virtualises, so this is roughly the visible page). */
