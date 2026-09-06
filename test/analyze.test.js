@@ -100,6 +100,28 @@ test('yoe: context required before or after the match to count as a requirement'
   assert.equal(f5[0].value, 6);
 });
 
+test('yoe: "yrs."/"exp."/"min." abbreviation periods do not split the sentence away from context', () => {
+  const f1 = analyze('2+ yrs. of React');
+  assert.equal(f1.length, 1);
+  assert.equal(f1[0].id, 'yoe');
+  assert.equal(f1[0].value, 2);
+
+  const f2 = analyze('Min. 3 yrs. exp. required.');
+  assert.equal(f2[0].value, 3);
+});
+
+test('yoe: a match wrapped in parentheses/brackets counts as having context', () => {
+  const f1 = analyze('Senior (5+ years) engineer');
+  assert.equal(f1.length, 1);
+  assert.equal(f1[0].value, 5);
+
+  const f2 = analyze('Backend Engineer [3+ yrs]');
+  assert.equal(f2.length, 1);
+  assert.equal(f2[0].value, 3);
+
+  assert.deepEqual(analyze('Founded (12 years ago)'), []);
+});
+
 test('softener in the same sentence downgrades to yellow', () => {
   const f = analyze('5+ years of Kubernetes experience preferred.');
   assert.equal(f[0].severity, 'yellow');

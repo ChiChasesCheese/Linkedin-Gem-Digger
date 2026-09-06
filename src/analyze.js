@@ -38,11 +38,16 @@ export function extractMetaPhrases(text) {
 // boundaries, so those periods are never mistaken for sentence-enders.
 const ABBREV_PLACEHOLDER = '․';
 const ABBREV_RE = /\b([A-Za-z])\.([A-Za-z])\./g;
+// Same idea for common YOE-adjacent abbreviations ("2+ yrs. of React", "Min. 3 yrs. exp.
+// required.") so the period doesn't split the requirement away from its context words.
+const ABBREV_WORD_RE = /\b(yrs?|exp|min)\./gi;
 const RESTORE_RE = new RegExp(ABBREV_PLACEHOLDER, 'g');
 
 /** Split JD text into trimmed, non-empty sentence-like chunks. */
 export function splitSentences(text) {
-  const protectedText = String(text ?? '').replace(ABBREV_RE, `$1${ABBREV_PLACEHOLDER}$2${ABBREV_PLACEHOLDER}`);
+  const protectedText = String(text ?? '')
+    .replace(ABBREV_RE, `$1${ABBREV_PLACEHOLDER}$2${ABBREV_PLACEHOLDER}`)
+    .replace(ABBREV_WORD_RE, `$1${ABBREV_PLACEHOLDER}`);
   return protectedText
     .split(/(?<=[.;!?])\s+|\n+|\r+|[•·▪◦]|(?:^|\n)\s*[-*]\s+/)
     .map((s) => s.replace(RESTORE_RE, '.').replace(/^[\s\-*•·]+/, '').replace(/[.;!?]+\s*$/, '').trim())
@@ -98,7 +103,12 @@ export function analyze(text, config = DEFAULTS) {
           if (YOE_NOISE.test(sentence) || YOE_CAP.test(sentence) || YOE_COMPANY_RE.test(sentence)) continue;
           const afterText = sentence.slice(re.lastIndex, re.lastIndex + 50);
           const beforeText = sentence.slice(Math.max(0, m.index - 50), m.index);
-          const hasContext = YOE_AFTER_CTX.test(afterText) || YOE_BEFORE_CTX.test(beforeText) || /:\s*$/.test(beforeText);
+          // A match immediately wrapped in parentheses/brackets ("(5+ years)", "[3+ yrs]")
+          // carries its own context even without a keyword nearby.
+          const beforeChar = beforeText.replace(/\s+$/, '').slice(-1);
+          const afterChar = afterText.replace(/^\s+/, '').slice(0, 1);
+          const wrapped = (beforeChar === '(' || beforeChar === '[') && (afterChar === ')' || afterChar === ']');
+          const hasContext = wrapped || YOE_AFTER_CTX.test(afterText) || YOE_BEFORE_CTX.test(beforeText) || /:\s*$/.test(beforeText);
           if (!hasContext) continue;
           value = rule.extract(m);
           if (!(value >= config.yoeThreshold)) continue;
