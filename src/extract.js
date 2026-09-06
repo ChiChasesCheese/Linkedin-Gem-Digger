@@ -10,8 +10,11 @@ let cachedDocTs = -Infinity;
 /**
  * The document that actually holds the job UI: LinkedIn's SPA shell ("interop" mode) hosts the
  * classic Ember pages inside a same-origin `<iframe src=".../preload/...">` (itself inside a
- * shadow host), while the top document renders nothing. Prefer that iframe's document when it
- * looks populated; fall back to the top document (classic layout, or a hard-reloaded page).
+ * shadow host), while the top document renders nothing. But the shell keeps that iframe around
+ * (with just the global nav in it, ~3k chars of text) even when a page — e.g. the newer SDUI
+ * `/jobs/search-results/` split view — renders in the top document, so "populated" is not enough:
+ * prefer the iframe's document only when it actually holds job UI (a card list or a posting),
+ * otherwise fall back to the top document (classic layout, SDUI layout, or a hard-reloaded page).
  */
 export function getDoc() {
   const now = performance.now();
@@ -20,15 +23,18 @@ export function getDoc() {
   try {
     const f = document.querySelector('iframe[src*="/preload/"]');
     const d = f?.contentDocument;
-    // Cheap populated-check that avoids forcing layout (no innerText read): readyState plus
-    // childElementCount plus a textContent length probe.
-    if (d && d.body && d.readyState !== 'loading' && d.body.childElementCount > 0 && (d.body.textContent || '').length > 200) {
-      result = d;
-    }
+    if (d && d.body && d.readyState !== 'loading' && hasJobUi(d)) result = d;
   } catch { /* cross-origin or detached */ }
   cachedDoc = result;
   cachedDocTs = now;
   return result;
+}
+
+/** True when `root` contains a job card list or a job posting (no layout forced: querySelector only). */
+function hasJobUi(root) {
+  if (root.querySelector(CARD_SELECTOR) || root.querySelector(LI_DETAIL_SELECTOR)) return true;
+  for (const h of root.querySelectorAll('h1, h2, h3, h4')) if (ABOUT_RE.test(h.textContent || '')) return true;
+  return false;
 }
 
 export const isLinkedIn = () => location.hostname.endsWith('linkedin.com');
@@ -50,10 +56,16 @@ const LI_DETAIL_SELECTORS = [
   '[class*="jobs-details__main-content"]',
   '[class*="job-details-module"]',
 ];
+const LI_DETAIL_SELECTOR = LI_DETAIL_SELECTORS.join(', ');
 
+// The newer server-driven ("SDUI") search UI has hashed class names and no data-job-id; its card
+// wrapper carries `componentkey="job-card-component-ref-<jobId>"` instead (on two nested divs —
+// getCards() de-dupes by job id, so the outer one wins).
+const SDUI_CARD_KEY = 'job-card-component-ref-';
 const CARD_SELECTORS = [
   'li[data-occludable-job-id]',
   'div[data-job-id]',
+  `[componentkey^="${SDUI_CARD_KEY}"]`,
   'li.jobs-search-results__list-item',
   'li.scaffold-layout__list-item',
 ];
@@ -119,6 +131,12 @@ export function getJobText() {
   return t || getDoc().body?.innerText?.trim() || '';
 }
 
+function sduiTitle(el) {
+  if (!el.hasAttribute('componentkey')) return '';
+  const lines = (el.innerText || '').split('\n').map((l) => l.trim()).filter(Boolean);
+  return lines[1] || lines[0] || '';
+}
+
 /** LinkedIn cards currently in the DOM (LinkedIn virtualises, so this is roughly the visible page). */
 export function getCards() {
   if (!isLinkedInList()) return [];
@@ -130,13 +148,16 @@ export function getCards() {
         el.getAttribute('data-occludable-job-id') ||
         el.getAttribute('data-job-id') ||
         el.querySelector('[data-job-id]')?.getAttribute('data-job-id') ||
+        el.getAttribute('componentkey')?.slice(SDUI_CARD_KEY.length).match(/^\d+/)?.[0] ||
         el.querySelector('a[href*="/jobs/view/"]')?.href.match(/\/jobs\/view\/(\d+)/)?.[1] ||
         null;
       const key = jobId ?? el;
       if (seen.has(key)) continue;
       seen.add(key);
       const link = el.querySelector('a[href*="/jobs/view/"], a.job-card-list__title--link, a.job-card-container__link');
-      const title = (link?.innerText || el.querySelector('strong')?.innerText || '').split('\n')[0].trim();
+      // SDUI cards have no anchor/strong: the first text line is an a11y label ("Selected, <title>",
+      // "<title> (Verified job)"); the second is the plain title.
+      const title = (link?.innerText || el.querySelector('strong')?.innerText || sduiTitle(el) || '').split('\n')[0].trim();
       if (!title) continue;
       out.push({ el, jobId, title, text: el.innerText ?? '' });
     }
