@@ -1,4 +1,5 @@
 // All DOM *reads* live here. Nothing in this file writes to the page.
+import { META_RE, extractMetaPhrases } from './analyze.js';
 
 // getDoc() is called many times per rerun pass (once per DOM read in this file); memoize its
 // result for a short window so repeated calls within one synchronous pass don't repeat the
@@ -6,6 +7,36 @@
 // rerun (500ms later, see main.js's schedule()) recomputes.
 let cachedDoc = null;
 let cachedDocTs = -Infinity;
+
+const ABOUT_RE = /^\s*about the job\s*$/i;
+
+// The newer server-driven ("SDUI") search UI has hashed class names and no data-job-id; its card
+// wrapper carries `componentkey="job-card-component-ref-<jobId>"` instead (on two nested divs —
+// getCards() de-dupes by job id, so the outer one wins).
+const SDUI_CARD_KEY = 'job-card-component-ref-';
+const CARD_SELECTORS = [
+  'li[data-occludable-job-id]',
+  'div[data-job-id]',
+  `[componentkey^="${SDUI_CARD_KEY}"]`,
+  'li.jobs-search-results__list-item',
+  'li.scaffold-layout__list-item',
+];
+const CARD_SELECTOR = CARD_SELECTORS.join(', ');
+
+
+/**
+ * Score how populated a document is with real job UI (job cards, an "About the job" heading, a
+ * link into a job view), vs. an empty shell. Cheap: a handful of querySelector calls, no
+ * innerText read, no layout forced.
+ */
+function jobUiScore(doc) {
+  if (!doc?.body) return -1;
+  let s = 0;
+  if (doc.querySelector(CARD_SELECTOR)) s += 2;
+  if ([...doc.querySelectorAll('h1, h2, h3, h4')].some((e) => ABOUT_RE.test(e.textContent || ''))) s += 2;
+  if (doc.querySelector('a[href*="/jobs/view/"]')) s += 1;
+  return s;
+}
 
 /**
  * The document that actually holds the job UI: LinkedIn's SPA shell ("interop" mode) hosts the
@@ -15,6 +46,8 @@ let cachedDocTs = -Infinity;
  * `/jobs/search-results/` split view — renders in the top document, so "populated" is not enough:
  * prefer the iframe's document only when it actually holds job UI (a card list or a posting),
  * otherwise fall back to the top document (classic layout, SDUI layout, or a hard-reloaded page).
+ * Both documents are scored on the job UI they contain; the iframe wins only with a strictly
+ * higher score, so an empty nav-only shell never beats a top document holding the posting.
  */
 export function getDoc() {
   const now = performance.now();
@@ -23,18 +56,13 @@ export function getDoc() {
   try {
     const f = document.querySelector('iframe[src*="/preload/"]');
     const d = f?.contentDocument;
-    if (d && d.body && d.readyState !== 'loading' && hasJobUi(d)) result = d;
+    if (d && d.body && d.readyState !== 'loading' && jobUiScore(d) > jobUiScore(document)) {
+      result = d;
+    }
   } catch { /* cross-origin or detached */ }
   cachedDoc = result;
   cachedDocTs = now;
   return result;
-}
-
-/** True when `root` contains a job card list or a job posting (no layout forced: querySelector only). */
-function hasJobUi(root) {
-  if (root.querySelector(CARD_SELECTOR) || root.querySelector(LI_DETAIL_SELECTOR)) return true;
-  for (const h of root.querySelectorAll('h1, h2, h3, h4')) if (ABOUT_RE.test(h.textContent || '')) return true;
-  return false;
 }
 
 export const isLinkedIn = () => location.hostname.endsWith('linkedin.com');
@@ -58,19 +86,6 @@ const LI_DETAIL_SELECTORS = [
 ];
 const LI_DETAIL_SELECTOR = LI_DETAIL_SELECTORS.join(', ');
 
-// The newer server-driven ("SDUI") search UI has hashed class names and no data-job-id; its card
-// wrapper carries `componentkey="job-card-component-ref-<jobId>"` instead (on two nested divs —
-// getCards() de-dupes by job id, so the outer one wins).
-const SDUI_CARD_KEY = 'job-card-component-ref-';
-const CARD_SELECTORS = [
-  'li[data-occludable-job-id]',
-  'div[data-job-id]',
-  `[componentkey^="${SDUI_CARD_KEY}"]`,
-  'li.jobs-search-results__list-item',
-  'li.scaffold-layout__list-item',
-];
-const CARD_SELECTOR = CARD_SELECTORS.join(', ');
-
 function firstText(selectors, root = getDoc()) {
   for (const s of selectors) {
     const el = root.querySelector(s);
@@ -79,8 +94,6 @@ function firstText(selectors, root = getDoc()) {
   }
   return '';
 }
-
-const ABOUT_RE = /^\s*about the job\s*$/i;
 
 /**
  * Container of the posting anchored on an "About the job" heading, or null.
@@ -118,11 +131,35 @@ function headingAnchoredContainer() {
   return null;
 }
 
+/**
+ * Meta phrases ("Reposted 23 hours ago", "Over 100 people clicked apply") from the posting
+ * header, which on some layouts sits outside headingAnchoredContainer()'s climb. Anchored on the
+ * visible job-title <h1> rather than scanning the whole body: walk up a few levels looking for
+ * the first ancestor that isn't the card list and whose text matches META_RE.
+ */
+function postingMetaLines() {
+  const visible = (el) => (el.checkVisibility ? el.checkVisibility() : el.getClientRects().length > 0);
+  const h1 = [...getDoc().querySelectorAll('h1')].find(visible);
+  if (!h1) return [];
+  const metaRe = new RegExp(META_RE.source, META_RE.flags);
+  let el = h1.parentElement ?? null;
+  for (let steps = 0; el && steps < 4; steps++, el = el.parentElement) {
+    if (el.querySelector(CARD_SELECTOR)) continue;
+    const text = el.innerText || '';
+    metaRe.lastIndex = 0;
+    if (metaRe.test(text)) return extractMetaPhrases(text);
+  }
+  return [];
+}
+
 /** JD text for the posting the user is looking at. Empty string if nothing usable. */
 export function getJobText() {
   if (isLinkedIn()) {
     const anchored = headingAnchoredContainer()?.innerText?.trim();
-    if (anchored && anchored.length > 80) return anchored;
+    if (anchored && anchored.length > 80) {
+      const meta = postingMetaLines();
+      return meta.length ? `${anchored}\n${meta.join('\n')}` : anchored;
+    }
     const t = firstText(LI_DETAIL_SELECTORS);
     if (t) return t;
     if (isLinkedInList()) return ''; // never fall back to body on list pages: it would scan every card

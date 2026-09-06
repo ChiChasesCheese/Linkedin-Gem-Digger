@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyze, splitSentences, worstSeverity } from '../src/analyze.js';
+import { analyze, splitSentences, worstSeverity, extractMetaPhrases } from '../src/analyze.js';
 import { DEFAULTS } from '../src/config.js';
 
 const ids = (f) => f.map((x) => x.id);
@@ -178,6 +178,50 @@ test('salary: rule can be disabled via config.rules["salary-max"]', () => {
 test('ordering: salary sorts after yoe at equal (red) severity', () => {
   const f = analyze('5+ years of Go. Salary: $100,000 - $120,000.');
   assert.deepEqual(ids(f), ['yoe', 'salary']);
+});
+
+test('extractMetaPhrases: distinct meta phrases in order, dedup preserved', () => {
+  const s = 'Boston, MA · Reposted 23 hours ago · Over 100 people clicked apply\nPromoted by hirer';
+  assert.deepEqual(extractMetaPhrases(s), ['Reposted 23 hours ago', 'Over 100 people clicked apply']);
+});
+
+test('applicants: over-threshold count is a red finding at default threshold 100', () => {
+  const f = analyze('Over 100 people clicked apply');
+  assert.equal(f.length, 1);
+  assert.deepEqual({ id: f[0].id, severity: f[0].severity, value: f[0].value }, { id: 'applicants', severity: 'red', value: 100 });
+});
+
+test('applicants: below threshold is not reported', () => {
+  assert.deepEqual(analyze('88 applicants'), []);
+});
+
+test('applicants: threshold is configurable via config.applicantsMax', () => {
+  assert.deepEqual(analyze('250 applicants', { ...DEFAULTS, applicantsMax: 300 }), []);
+});
+
+test('applicants: rule can be disabled via config.rules.applicants', () => {
+  const cfg = { ...DEFAULTS, rules: { ...DEFAULTS.rules, applicants: false } };
+  assert.deepEqual(analyze('Over 100 people clicked apply', cfg), []);
+});
+
+test('applicants: not softener-downgradable', () => {
+  const f = analyze('Over 100 people clicked apply, ideally fewer.');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].severity, 'red');
+});
+
+test('applicants: one finding max, keeps the highest value', () => {
+  const f = analyze('120 applicants so far. Over 300 people clicked apply.');
+  assert.equal(f.filter((x) => x.id === 'applicants').length, 1);
+  assert.equal(f.find((x) => x.id === 'applicants').value, 300);
+});
+
+test('ordering: reposted still fires alongside applicants, red before yellow', () => {
+  assert.equal(analyze('Reposted 23 hours ago')[0].severity, 'yellow');
+  const f = analyze('Reposted 23 hours ago. Over 100 applicants.');
+  assert.deepEqual(ids(f), ['applicants', 'reposted']);
+  assert.equal(f[0].severity, 'red');
+  assert.equal(f[1].severity, 'yellow');
 });
 
 test('worstSeverity', () => {

@@ -17,6 +17,9 @@ export const SOFTENERS = /\b(preferred|nice to have|a plus|bonus|ideally|plus bu
 /** Sentences must mention one of these alongside a $ amount to count as a stated salary. */
 export const PAY_KEYWORD_RE = /\b(salary|salaries|compensation|base pay|pay range|pay rate|per hour|hourly|per year|annually|annual|\/yr|\/hr|\/hour|a year|an hour)\b/i;
 
+/** Matches "88 applicants" / "Over 100 people clicked apply"; group 1 is the applicant count. */
+export const APPLICANTS_RE = /\b(?:over\s+)?(\d{1,5})\+?\s+(?:applicants|people\s+clicked\s+apply)\b/i;
+
 /** Titles that must never be greyed by the seniority greylist. */
 export const TITLE_EXEMPT = /\b(intern(ship)?|new grad(uate)?|entry[- ]level|junior|early[- ]career|university grad(uate)?)\b/i;
 
