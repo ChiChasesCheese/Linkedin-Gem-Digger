@@ -148,7 +148,8 @@ function postingMetaLines(container) {
   const metaRe = new RegExp(META_RE.source, META_RE.flags);
   const baseLen = Math.max(1, (container.innerText || '').length);
   let el = container.parentElement ?? null;
-  for (let steps = 0; el && steps < 6; steps++, el = el.parentElement) {
+  // LinkedIn wraps the description in several same-text divs; the header is ~7 levels up.
+  for (let steps = 0; el && steps < 10; steps++, el = el.parentElement) {
     if (el.querySelector(CARD_SELECTOR)) break;
     const text = el.innerText || '';
     // Similar-jobs blocks may lack our card selectors; once an ancestor is several times the
