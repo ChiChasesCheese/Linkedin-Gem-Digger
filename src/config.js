@@ -4,6 +4,8 @@ export const DEFAULTS = Object.freeze({
   salaryFloor: 130000,
   applicantsMax: 100,
   titleGreylist: ['Senior', 'Sr.', 'Staff', 'Principal', 'Lead', 'Manager', 'Director', 'Architect', 'Head of'],
+  titleIgnorelist: ['Member of Technical Staff', 'Technical Staff', 'MTS'],
+  dockSide: 'left',
   rules: {
     yoe: true, citizenship: true, clearance: true, sponsorship: true, degree: false,
     reposted: true, 'title-seniority': true, 'salary-max': true, viewed: true,

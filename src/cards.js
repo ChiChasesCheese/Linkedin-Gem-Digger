@@ -47,8 +47,14 @@ export function analyzeCard(meta, config = DEFAULTS) {
   const title = String(meta.title ?? '');
 
   if (on('title-seniority') && config.titleGreylist?.length && !TITLE_EXEMPT.test(title)) {
+    // Neutral phrases ("Member of Technical Staff") contain greylist words as nouns, not levels:
+    // strip them first so only a real level modifier ("Senior Member of Technical Staff") matches.
+    const ignore = config.titleIgnorelist ?? DEFAULTS.titleIgnorelist ?? [];
+    const cleaned = ignore.length
+      ? title.replace(new RegExp(`(?:^|[^A-Za-z])(?:${ignore.map(esc).join('|')})(?![A-Za-z])`, 'gi'), ' ')
+      : title;
     const re = new RegExp(`(?:^|[^A-Za-z])(?:${config.titleGreylist.map(esc).join('|')})(?![A-Za-z])`, 'i');
-    const m = title.match(re);
+    const m = cleaned.match(re);
     if (m) out.push({ id: 'title-seniority', category: 'title', severity: 'red', sentence: m[0].trim() });
   }
   if (on('salary-max') && typeof meta.salaryMax === 'number' && meta.salaryMax < config.salaryFloor) {

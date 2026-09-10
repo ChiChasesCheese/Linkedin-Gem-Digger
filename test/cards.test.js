@@ -30,6 +30,17 @@ test('title-seniority greys Senior/Staff/etc but exempts intern/new grad', () =>
   assert.deepEqual(analyzeCard({ title: 'Software Engineer (Ray Core)' }), []);
 });
 
+test('title-seniority ignores neutral phrases like Member of Technical Staff', () => {
+  assert.deepEqual(analyzeCard({ title: 'Member of Technical Staff (Software Engineer, Infrastructure)' }), []);
+  assert.deepEqual(analyzeCard({ title: 'MTS, Backend' }), []);
+  const f = analyzeCard({ title: 'Senior Member of Technical Staff' });
+  assert.equal(f.length, 1);
+  assert.equal(f[0].sentence, 'Senior');
+  assert.equal(analyzeCard({ title: 'Staff Software Engineer' })[0].sentence, 'Staff');
+  const cfg = { ...DEFAULTS, titleIgnorelist: [] };
+  assert.equal(analyzeCard({ title: 'Member of Technical Staff' }, cfg)[0].sentence, 'Staff');
+});
+
 test('title-seniority uses word boundaries and the configured list', () => {
   assert.deepEqual(analyzeCard({ title: 'Leadership Platform Engineer' }), []); // "Lead" not a word here
   const cfg = { ...DEFAULTS, titleGreylist: ['VP'] };
