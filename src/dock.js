@@ -7,7 +7,7 @@ import { DOCK_ID } from './render.js';
 const LABELS = {
   yoe: 'YOE', citizenship: 'Citizenship', clearance: 'Clearance', sponsorship: 'Sponsorship',
   degree: 'Degree', reposted: 'Reposted', 'title-seniority': 'Title', 'salary-max': 'Salary',
-  salary: 'Salary', viewed: 'Viewed', promoted: 'Promoted', applicants: 'Applicants',
+  salary: 'Salary', viewed: 'Viewed', promoted: 'Promoted', 'easy-apply': 'Easy Apply', applicants: 'Applicants',
 };
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -138,6 +138,7 @@ const TEMPLATE = `
         <label>Max salary is below the floor <input type="checkbox" data-rule="salary-max"></label>
         <label>You already viewed it <input type="checkbox" data-rule="viewed"></label>
         <label>It is a Promoted (paid) listing <input type="checkbox" data-rule="promoted"></label>
+        <label>It is an Easy Apply listing <input type="checkbox" data-rule="easy-apply"></label>
         <label>Applicants &ge; threshold (needs scan) <input type="checkbox" data-rule="applicants"></label>
         <label>Hide flagged cards instead of greying <input type="checkbox" id="hideInsteadOfGrey"></label>
       </fieldset>

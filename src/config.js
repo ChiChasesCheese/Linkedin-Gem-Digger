@@ -7,7 +7,7 @@ export const DEFAULTS = Object.freeze({
   rules: {
     yoe: true, citizenship: true, clearance: true, sponsorship: true, degree: false,
     reposted: true, 'title-seniority': true, 'salary-max': true, viewed: true,
-    promoted: false, applicants: true,
+    promoted: false, 'easy-apply': true, applicants: true,
   },
   repostedIsRed: false,
   hideInsteadOfGrey: false,

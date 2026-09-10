@@ -56,6 +56,7 @@ export function analyzeCard(meta, config = DEFAULTS) {
   }
   if (on('viewed') && meta.viewed) out.push({ id: 'viewed', category: 'seen', severity: 'red', sentence: 'Viewed' });
   if (on('promoted') && meta.promoted) out.push({ id: 'promoted', category: 'promoted', severity: 'red', sentence: 'Promoted' });
+  if (on('easy-apply') && meta.easyApply) out.push({ id: 'easy-apply', category: 'apply', severity: 'red', sentence: 'Easy Apply' });
   if (on('reposted') && meta.reposted) {
     out.push({ id: 'reposted', category: 'freshness', severity: config.repostedIsRed ? 'red' : 'yellow', sentence: 'Reposted' });
   }

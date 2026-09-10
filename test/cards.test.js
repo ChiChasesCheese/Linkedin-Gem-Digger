@@ -50,6 +50,16 @@ test('viewed on by default, promoted off by default', () => {
   assert.equal(analyzeCard({ title: 'SWE', promoted: true }, cfg)[0].id, 'promoted');
 });
 
+test('easy-apply greys by default and can be disabled', () => {
+  const f = analyzeCard({ title: 'SWE', easyApply: true });
+  assert.equal(f.length, 1);
+  assert.equal(f[0].id, 'easy-apply');
+  assert.equal(f[0].sentence, 'Easy Apply');
+  assert.deepEqual(analyzeCard({ title: 'SWE', easyApply: false }), []);
+  const cfg = { ...DEFAULTS, rules: { ...DEFAULTS.rules, 'easy-apply': false } };
+  assert.deepEqual(analyzeCard({ title: 'SWE', easyApply: true }, cfg), []);
+});
+
 test('reposted yellow by default, red when repostedIsRed', () => {
   assert.equal(analyzeCard({ title: 'SWE', reposted: true })[0].severity, 'yellow');
   assert.equal(analyzeCard({ title: 'SWE', reposted: true }, { ...DEFAULTS, repostedIsRed: true })[0].severity, 'red');
