@@ -119,7 +119,7 @@ const TEMPLATE = `
 
   /* --- toggle rows ----------------------------------------------------------------------------- */
   .rule-row { display: flex; align-items: center; justify-content: space-between; gap: var(--gd-sp-2);
-    height: 40px; border-bottom: 1px solid var(--gd-border); }
+    height: 40px; border-bottom: 1px solid var(--gd-border); cursor: pointer; }
   .rule-row:last-child { border-bottom: none; }
   .rule-row .rule-label { flex: 1; }
   input[type=checkbox].gd-switch { appearance: none; -webkit-appearance: none; width: 36px; height: 20px;
@@ -239,18 +239,18 @@ const TEMPLATE = `
 
       <div class="section-label" style="margin-top:var(--gd-sp-3)">Flag a posting when it says…</div>
       <div class="card">
-        <div class="rule-row"><span class="rule-label">Requires threshold+ years of experience</span><input type="checkbox" class="gd-switch" data-rule="yoe"></div>
-        <div class="rule-row"><span class="rule-label">Requires US citizenship</span><input type="checkbox" class="gd-switch" data-rule="citizenship"></div>
-        <div class="rule-row"><span class="rule-label">Requires security clearance / ITAR</span><input type="checkbox" class="gd-switch" data-rule="clearance"></div>
-        <div class="rule-row"><span class="rule-label">No visa sponsorship (incl. H-1B)</span><input type="checkbox" class="gd-switch" data-rule="sponsorship"></div>
-        <div class="rule-row"><span class="rule-label">Requires PhD / Master's (yellow only)</span><input type="checkbox" class="gd-switch" data-rule="degree"></div>
-        <div class="rule-row"><span class="rule-label">Posting is a repost (yellow)</span><input type="checkbox" class="gd-switch" data-rule="reposted"></div>
-        <div class="rule-row"><span class="rule-label">Treat repost as red instead</span><input type="checkbox" class="gd-switch" id="repostedIsRed"></div>
+        <label class="rule-row"><span class="rule-label">Requires threshold+ years of experience</span><input type="checkbox" class="gd-switch" data-rule="yoe"></label>
+        <label class="rule-row"><span class="rule-label">Requires US citizenship</span><input type="checkbox" class="gd-switch" data-rule="citizenship"></label>
+        <label class="rule-row"><span class="rule-label">Requires security clearance / ITAR</span><input type="checkbox" class="gd-switch" data-rule="clearance"></label>
+        <label class="rule-row"><span class="rule-label">No visa sponsorship (incl. H-1B)</span><input type="checkbox" class="gd-switch" data-rule="sponsorship"></label>
+        <label class="rule-row"><span class="rule-label">Requires PhD / Master's (yellow only)</span><input type="checkbox" class="gd-switch" data-rule="degree"></label>
+        <label class="rule-row"><span class="rule-label">Posting is a repost (yellow)</span><input type="checkbox" class="gd-switch" data-rule="reposted"></label>
+        <label class="rule-row"><span class="rule-label">Treat repost as red instead</span><input type="checkbox" class="gd-switch" id="repostedIsRed"></label>
       </div>
 
       <div class="section-label">Grey out a card when…</div>
       <div class="card">
-        <div class="rule-row"><span class="rule-label">Title contains a seniority word</span><input type="checkbox" class="gd-switch" data-rule="title-seniority"></div>
+        <label class="rule-row"><span class="rule-label">Title contains a seniority word</span><input type="checkbox" class="gd-switch" data-rule="title-seniority"></label>
         <div class="field">
           <textarea class="gd-textarea" id="titleGreylist" rows="2" placeholder="Senior, Staff, ..."></textarea>
         </div>
@@ -259,12 +259,12 @@ const TEMPLATE = `
           <div class="help">Removed from the title before the seniority check, so "Member of Technical Staff" is not treated as Staff.</div>
           <textarea class="gd-textarea" id="titleIgnorelist" rows="2" placeholder="Member of Technical Staff, ..."></textarea>
         </div>
-        <div class="rule-row"><span class="rule-label">Max salary is below the floor</span><input type="checkbox" class="gd-switch" data-rule="salary-max"></div>
-        <div class="rule-row"><span class="rule-label">You already viewed it</span><input type="checkbox" class="gd-switch" data-rule="viewed"></div>
-        <div class="rule-row"><span class="rule-label">It is a Promoted (paid) listing</span><input type="checkbox" class="gd-switch" data-rule="promoted"></div>
-        <div class="rule-row"><span class="rule-label">It is an Easy Apply listing</span><input type="checkbox" class="gd-switch" data-rule="easy-apply"></div>
-        <div class="rule-row"><span class="rule-label">Applicants over threshold (needs scan)</span><input type="checkbox" class="gd-switch" data-rule="applicants"></div>
-        <div class="rule-row"><span class="rule-label">Hide flagged cards instead of greying</span><input type="checkbox" class="gd-switch" id="hideInsteadOfGrey"></div>
+        <label class="rule-row"><span class="rule-label">Max salary is below the floor</span><input type="checkbox" class="gd-switch" data-rule="salary-max"></label>
+        <label class="rule-row"><span class="rule-label">You already viewed it</span><input type="checkbox" class="gd-switch" data-rule="viewed"></label>
+        <label class="rule-row"><span class="rule-label">It is a Promoted (paid) listing</span><input type="checkbox" class="gd-switch" data-rule="promoted"></label>
+        <label class="rule-row"><span class="rule-label">It is an Easy Apply listing</span><input type="checkbox" class="gd-switch" data-rule="easy-apply"></label>
+        <label class="rule-row"><span class="rule-label">Applicants over threshold (needs scan)</span><input type="checkbox" class="gd-switch" data-rule="applicants"></label>
+        <label class="rule-row"><span class="rule-label">Hide flagged cards instead of greying</span><input type="checkbox" class="gd-switch" id="hideInsteadOfGrey"></label>
       </div>
     </div>
   </div>
