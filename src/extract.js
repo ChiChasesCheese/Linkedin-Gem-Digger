@@ -188,6 +188,26 @@ function sduiTitle(el) {
   return el.hasAttribute('componentkey') ? sduiTitleFromText(el.innerText) : '';
 }
 
+/** Job id for a card element: data-occludable-job-id, data-job-id (own or nested), the SDUI
+ * componentkey suffix, or a /jobs/view/<id> link. null if none apply. */
+export function cardJobId(el) {
+  return (
+    el.getAttribute('data-occludable-job-id') ||
+    el.getAttribute('data-job-id') ||
+    el.querySelector('[data-job-id]')?.getAttribute('data-job-id') ||
+    el.getAttribute('componentkey')?.slice(SDUI_CARD_KEY.length).match(/^\d+/)?.[0] ||
+    el.querySelector('a[href*="/jobs/view/"]')?.href.match(/\/jobs\/view\/(\d+)/)?.[1] ||
+    null
+  );
+}
+
+function cardTitle(el) {
+  const link = el.querySelector('a[href*="/jobs/view/"], a.job-card-list__title--link, a.job-card-container__link');
+  // SDUI cards have no anchor/strong: the first text line is an a11y label ("Selected, <title>",
+  // "<title> (Verified job)"); the second is the plain title.
+  return (link?.innerText || el.querySelector('strong')?.innerText || sduiTitle(el) || '').split('\n')[0].trim();
+}
+
 /** LinkedIn cards currently in the DOM (LinkedIn virtualises, so this is roughly the visible page). */
 export function getCards() {
   if (!isLinkedInList()) return [];
@@ -195,24 +215,111 @@ export function getCards() {
   const out = [];
   for (const sel of CARD_SELECTORS) {
     for (const el of getDoc().querySelectorAll(sel)) {
-      const jobId =
-        el.getAttribute('data-occludable-job-id') ||
-        el.getAttribute('data-job-id') ||
-        el.querySelector('[data-job-id]')?.getAttribute('data-job-id') ||
-        el.getAttribute('componentkey')?.slice(SDUI_CARD_KEY.length).match(/^\d+/)?.[0] ||
-        el.querySelector('a[href*="/jobs/view/"]')?.href.match(/\/jobs\/view\/(\d+)/)?.[1] ||
-        null;
+      const jobId = cardJobId(el);
       const key = jobId ?? el;
       if (seen.has(key)) continue;
       seen.add(key);
-      const link = el.querySelector('a[href*="/jobs/view/"], a.job-card-list__title--link, a.job-card-container__link');
-      // SDUI cards have no anchor/strong: the first text line is an a11y label ("Selected, <title>",
-      // "<title> (Verified job)"); the second is the plain title.
-      const title = (link?.innerText || el.querySelector('strong')?.innerText || sduiTitle(el) || '').split('\n')[0].trim();
+      const title = cardTitle(el);
       if (!title) continue;
       out.push({ el, jobId, title, text: el.innerText ?? '' });
     }
     if (out.length) break;
   }
   return out;
+}
+
+/**
+ * Every card element in the DOM right now that has a job id, regardless of whether LinkedIn has
+ * populated its title/link yet (occluded rows keep their `li`/wrapper and job id attribute, but
+ * their contents are stripped until scrolled into view). Used to size and drive a full-page scan,
+ * as opposed to getCards()'s "currently rendered" view.
+ */
+export function getCardsForScan() {
+  if (!isLinkedInList()) return [];
+  const seen = new Set();
+  const out = [];
+  for (const el of getDoc().querySelectorAll(CARD_SELECTOR)) {
+    const jobId = cardJobId(el);
+    if (!jobId || seen.has(jobId)) continue;
+    seen.add(jobId);
+    out.push({ el, jobId, title: cardTitle(el), text: el.innerText ?? '' });
+  }
+  return out;
+}
+
+/** Scrollable ancestor of the card list (the element whose scrollTop moves the cards), or null
+ * when there are no cards. Falls back to the owning document's scrollingElement. */
+export function getListScroller() {
+  const cards = getCardsForScan();
+  if (!cards.length) return null;
+  const doc = cards[0].el.ownerDocument;
+  const fallback = doc.scrollingElement;
+  let el = cards[0].el;
+  while (el && el !== fallback) {
+    const overflowY = doc.defaultView?.getComputedStyle?.(el)?.overflowY;
+    const scrollable = el.scrollHeight > el.clientHeight + 10 && (overflowY === 'auto' || overflowY === 'scroll');
+    if (scrollable) return el;
+    el = el.parentElement;
+  }
+  return fallback;
+}
+
+/**
+ * Pure scroll-position planner: given a scroller's current geometry, the ordered list of
+ * scrollTop values to visit to materialise every card, then land back where we started.
+ * Ascends by stepPx while the next position would still reveal more content, adds one final
+ * position at the true bottom (scrollHeight - clientHeight) if not already reached, then 0
+ * (to catch anything virtualised out above the starting position), then the original scrollTop.
+ */
+export function planScroll({ scrollTop, clientHeight, scrollHeight, stepPx }) {
+  const bottom = Math.max(scrollTop, scrollHeight - clientHeight);
+  const positions = [];
+  let last = scrollTop;
+  for (let pos = scrollTop + stepPx; pos + clientHeight < scrollHeight; pos += stepPx) {
+    positions.push(pos);
+    last = pos;
+  }
+  if (last !== bottom) positions.push(bottom);
+  positions.push(0);
+  positions.push(scrollTop);
+  return positions;
+}
+
+/**
+ * Scroll the list container to materialise every card, merging getCardsForScan() snapshots along
+ * the way, then restore the original scroll position. Scrolls only — never fetches. Returns the
+ * snapshot as-is when there's no scroller (nothing to scroll, e.g. a single-page-of-cards list).
+ */
+export async function collectAllCards({
+  sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
+  stepPx = 700,
+  stepMs = 350,
+  maxSteps = 40,
+  signal,
+} = {}) {
+  const snapshot = getCardsForScan();
+  const scroller = getListScroller();
+  if (!scroller) return snapshot;
+
+  const map = new Map();
+  for (const c of snapshot) map.set(c.jobId, c);
+
+  const originalScrollTop = scroller.scrollTop;
+  const positions = planScroll({
+    scrollTop: originalScrollTop,
+    clientHeight: scroller.clientHeight,
+    scrollHeight: scroller.scrollHeight,
+    stepPx,
+  });
+
+  let steps = 0;
+  for (const pos of positions) {
+    if (signal?.aborted || steps >= maxSteps) break;
+    scroller.scrollTop = pos;
+    steps++;
+    await sleep(stepMs);
+    for (const c of getCardsForScan()) if (!map.has(c.jobId)) map.set(c.jobId, c);
+  }
+  scroller.scrollTop = originalScrollTop;
+  return [...map.values()];
 }

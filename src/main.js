@@ -1,7 +1,7 @@
 import { loadConfig, saveConfig } from './config.js';
 import { analyze } from './analyze.js';
 import { analyzeCard, parseCardText } from './cards.js';
-import { getJobText, getJobId, getCards, isLinkedInList } from './extract.js';
+import { getJobText, getJobId, getCards, getCardsForScan, collectAllCards, isLinkedInList } from './extract.js';
 import { markCard, setCardStatus, DOCK_ID, STRIP_CLASS, STATUS_CLASS } from './render.js';
 import { createDock } from './dock.js';
 import { fetchJobDetail } from './linkedin-api.js';
@@ -48,7 +48,7 @@ function isOwnMutation(record) {
 }
 
 function cardFindings(card) {
-  const meta = { title: card.title, ...parseCardText(card.text) };
+  const meta = { title: card.title ?? '', ...parseCardText(card.text ?? card.el.innerText ?? '') };
   const d = card.jobId ? deep.get(card.jobId) : null;
   if (d) {
     if (d.applies != null) meta.applies = d.applies;
@@ -125,10 +125,11 @@ function schedule() {
 async function startScan() {
   if (!isLinkedInList()) return { started: false, reason: 'Not a LinkedIn list page.' };
   if (abort) return { started: false, reason: 'Scan already running.' };
-  const cards = getCards();
-  if (!cards.length) return { started: false, reason: 'No cards found on page.' };
 
-  abort = new AbortController();
+  abort = new AbortController(); // set before the scroll/await so a double click is refused
+  const cards = await collectAllCards({ signal: abort.signal });
+  if (!cards.length) { abort = null; return { started: false, reason: 'No cards found on page.' }; }
+
   const scanner = createScanner({ fetchDetail: fetchJobDetail, cache, config });
   for (const c of cards) if (c.jobId && !deep.has(c.jobId)) setCardStatus(c.el, 'queued…');
 
@@ -159,7 +160,7 @@ function onMessage(msg, _sender, reply) {
     switch (msg?.type) {
       case 'gem:status': {
         const bo = await cache.getBackoff();
-        return { isList: isLinkedInList(), cards: getCards().length, backoffUntil: bo.backoffUntil, cacheCount: await cache.count() };
+        return { isList: isLinkedInList(), cards: getCards().length, cardsTotal: getCardsForScan().length, backoffUntil: bo.backoffUntil, cacheCount: await cache.count() };
       }
       case 'gem:scan': return startScan();
       case 'gem:cancel': abort?.abort(); return { ok: true };
@@ -183,7 +184,7 @@ export async function init() {
       scan: () => startScan(),
       cancel: () => abort?.abort(),
       clearCache: async () => { await cache.clear(); deep.clear(); rerun(); },
-      status: async () => ({ cards: getCards().length, backoffUntil: (await cache.getBackoff()).backoffUntil, cacheCount: await cache.count() }),
+      status: async () => ({ cards: getCards().length, cardsTotal: getCardsForScan().length, backoffUntil: (await cache.getBackoff()).backoffUntil, cacheCount: await cache.count() }),
     },
   });
 

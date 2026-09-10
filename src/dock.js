@@ -105,9 +105,9 @@ const TEMPLATE = `
 
     <div id="gd-scan-section" hidden>
       <h2>Scan</h2>
-      <div class="muted">Fetches each visible card's posting, one at a time, ~1.5 s apart. Cached 7 days.</div>
+      <div class="muted">Scrolls the list once to load every card, then fetches each posting one at a time (~1.5 s apart). Cached 7 days.</div>
       <div class="scan-row">
-        <button class="gd-btn primary" id="gd-scan">Scan visible cards</button>
+        <button class="gd-btn primary" id="gd-scan">Scan this page</button>
         <button class="gd-btn" id="gd-cancel" disabled>Cancel</button>
       </div>
       <progress id="gd-progress" value="0" max="1" hidden></progress>
@@ -222,8 +222,8 @@ export function createDock({ getConfig, saveConfig, isListPage, actions }) {
       statusEl.textContent = `Rate-limited by LinkedIn. Try after ${fmtTime(s.backoffUntil)}.`;
       scanBtn.disabled = true;
     } else {
-      statusEl.textContent = `${s.cards} cards on page · cache: ${s.cacheCount} jobs.`;
-      scanBtn.disabled = s.cards === 0;
+      statusEl.textContent = `${s.cards} shown · ${s.cardsTotal} on page · cache: ${s.cacheCount} jobs.`;
+      scanBtn.disabled = s.cardsTotal === 0;
     }
   }
 

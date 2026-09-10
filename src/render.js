@@ -18,7 +18,10 @@ function cardSig(findings, config) {
 /** Grey out (or hide) a LinkedIn card and add a one-line reason strip. Idempotent; a true no-op when nothing changed. */
 export function markCard(el, findings, config) {
   const sig = cardSig(findings, config);
-  if (el.dataset.gemSig === sig) return; // nothing changed: don't touch the DOM (avoids a MutationObserver feedback loop)
+  // LinkedIn re-renders occluded `li` children on scroll, which wipes our strip while the `li`
+  // (and its dataset) survive — so a signature match alone isn't enough proof nothing changed;
+  // also require the strip to still be in the DOM whenever findings should have produced one.
+  if (el.dataset.gemSig === sig && (!findings.length || el.querySelector('.' + STRIP_CLASS))) return;
   unmarkCard(el);
   el.dataset.gemSig = sig;
   if (!findings.length) return;
