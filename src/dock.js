@@ -130,6 +130,10 @@ const TEMPLATE = `
   input[type=checkbox].gd-switch:checked { background: var(--gd-accent); border-color: var(--gd-accent); }
   input[type=checkbox].gd-switch:checked::after { transform: translateX(16px); }
   input[type=checkbox].gd-switch:focus-visible { outline: 2px solid var(--gd-focus); outline-offset: 2px; }
+  .rule-count { font: 600 11px/18px var(--gd-font); font-variant-numeric: tabular-nums; min-width: 18px;
+    padding: 0 6px; border-radius: 999px; background: var(--gd-surface-2); color: var(--gd-text-2);
+    text-align: center; margin-right: var(--gd-sp-2); }
+  .rule-count[hidden] { display: none; }
 
   /* --- numeric fields -------------------------------------------------------------------------- */
   .field { margin-bottom: var(--gd-sp-3); } .field:last-child { margin-bottom: 0; }
@@ -249,6 +253,7 @@ const TEMPLATE = `
       </div>
 
       <div class="section-label">Grey out a card when…</div>
+      <div class="help" id="gd-rule-count-help" hidden>Numbers show how many cards on this page each rule caught.</div>
       <div class="card">
         <label class="rule-row"><span class="rule-label">Title contains a seniority word</span><input type="checkbox" class="gd-switch" data-rule="title-seniority"></label>
         <div class="field">
@@ -286,9 +291,12 @@ export function createDock({ getConfig, saveConfig, isListPage, actions }) {
   const tab = $('gd-tab'), countEl = $('gd-count'), countPillEl = $('gd-count-pill'), drawer = $('gd-drawer'), dot = $('gd-dot');
   const flagsEl = $('gd-flags'), scanSection = $('gd-scan-section');
   const scanBtn = $('gd-scan'), cancelBtn = $('gd-cancel'), progressEl = $('gd-progress'), statusEl = $('gd-status');
+  const ruleCountHelpEl = $('gd-rule-count-help');
 
   let open = false;
   let lastSig = null;
+  let lastTally = null;
+  let lastRuleCountsSig = null;
 
   function setOpen(next) {
     open = next;
@@ -336,6 +344,32 @@ export function createDock({ getConfig, saveConfig, isListPage, actions }) {
     renderFlags(findings);
   }
 
+  /** Per-rule hit-count pills next to each [data-rule] settings row, plus the greyed count folded
+   * into the status line (see applyStatus). `tally` is `{ byRule, greyed, total }` from tally.js,
+   * or null off a list page. Only touches textContent/hidden on existing pills — never rebuilds
+   * the settings form, so it's safe to call while the user is mid-edit there. */
+  function setRuleCounts(tally) {
+    const sig = tally ? JSON.stringify(tally) : 'null';
+    if (sig === lastRuleCountsSig) return; // no-op: nothing changed
+    lastRuleCountsSig = sig;
+    lastTally = tally;
+    for (const input of root.querySelectorAll('[data-rule]')) {
+      const id = input.dataset.rule;
+      let pill = input.previousElementSibling;
+      if (!pill || !pill.classList.contains('rule-count')) {
+        pill = document.createElement('span');
+        pill.className = 'rule-count';
+        pill.dataset.countFor = id;
+        input.parentElement.insertBefore(pill, input);
+      }
+      const n = tally?.byRule?.[id] ?? 0;
+      pill.textContent = String(n);
+      pill.hidden = !tally || n === 0;
+    }
+    ruleCountHelpEl.hidden = !tally;
+    refreshStatus();
+  }
+
   function setScanning(on) { scanBtn.disabled = on; cancelBtn.disabled = !on; progressEl.hidden = !on; }
   scanBtn.addEventListener('click', async () => {
     setScanning(true);
@@ -356,7 +390,8 @@ export function createDock({ getConfig, saveConfig, isListPage, actions }) {
       statusEl.textContent = `Rate-limited by LinkedIn. Try after ${fmtTime(s.backoffUntil)}.`;
       scanBtn.disabled = true;
     } else {
-      statusEl.textContent = `${s.cards} shown · ${s.cardsTotal} on page · ${s.cacheCount} cached`;
+      const greyedPart = lastTally ? ` · ${lastTally.greyed} greyed` : '';
+      statusEl.textContent = `${s.cards} shown · ${s.cardsTotal} on page${greyedPart} · ${s.cacheCount} cached`;
       scanBtn.disabled = s.cardsTotal === 0;
     }
   }
@@ -429,5 +464,5 @@ export function createDock({ getConfig, saveConfig, isListPage, actions }) {
   fill();
   applyStatus();
 
-  return { setFindings, setScanProgress, setScanDone, refreshStatus };
+  return { setFindings, setScanProgress, setScanDone, refreshStatus, setRuleCounts };
 }

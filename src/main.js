@@ -6,6 +6,7 @@ import { markCard, setCardStatus, DOCK_ID, STRIP_CLASS, STATUS_CLASS } from './r
 import { createDock } from './dock.js';
 import { fetchJobDetail } from './linkedin-api.js';
 import { createScanner, createStorageCache } from './scanner.js';
+import { tallyFindings } from './tally.js';
 
 let config;
 let timer = null;
@@ -68,8 +69,14 @@ function runDetail() {
 }
 
 function runCards() {
-  if (!isLinkedInList()) return;
-  for (const card of getCards()) markCard(card.el, cardFindings(card), config);
+  if (!isLinkedInList()) { dock.setRuleCounts(null); return; }
+  const cardsFindings = [];
+  for (const card of getCards()) {
+    const findings = cardFindings(card);
+    cardsFindings.push(findings);
+    markCard(card.el, findings, config);
+  }
+  dock.setRuleCounts(tallyFindings(cardsFindings));
 }
 
 export function rerun() {
@@ -150,7 +157,7 @@ async function startScan() {
     const summary = { scanned: 0, cached: 0, failed: 0, aborted: true, rateLimited: false, backoffUntil: 0, error: String(e) };
     chrome.runtime.sendMessage({ type: 'gem:done', summary }).catch(() => {});
     dock.setScanDone(summary);
-  }).finally(() => { abort = null; });
+  }).finally(() => { abort = null; runCards(); /* refresh per-rule counts with the deep results */ });
 
   return { started: true };
 }
