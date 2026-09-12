@@ -12,10 +12,17 @@ export function getCsrfToken(cookieString) {
   return m ? m[2] : null;
 }
 
+/** Minimum listedAt − originalListedAt for a posting to count as reposted (3 days). */
+export const REPOST_MIN_GAP_MS = 3 * 86400000;
+
 export function parseVoyager(json) {
   const text = json?.description?.text ?? '';
   const applies = typeof json?.applies === 'number' ? json.applies : null;
-  const reposted = !!(json?.listedAt && json?.originalListedAt && json.listedAt !== json.originalListedAt);
+  // LinkedIn bumps listedAt by a few hours on ordinary refreshes/edits (seen live: a "6 hours ago"
+  // Meta posting had listedAt 2.2 h after originalListedAt and no "Reposted" label). Only a gap of
+  // days means the poster closed and re-opened the job — that is what LinkedIn labels "Reposted".
+  const gap = (json?.listedAt ?? 0) - (json?.originalListedAt ?? 0);
+  const reposted = !!(json?.listedAt && json?.originalListedAt && gap >= REPOST_MIN_GAP_MS);
   return { text, applies, reposted };
 }
 

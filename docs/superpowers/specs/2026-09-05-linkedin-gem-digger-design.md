@@ -171,7 +171,8 @@ host permission is needed.
   `accept: application/json`, `x-restli-protocol-version: 2.0.0`, `x-li-lang: en_US`;
   `credentials: 'include'`.
 - Read: `description.text`, `applies`, `listedAt`, `originalListedAt`
-  (reposted = `listedAt !== originalListedAt`).
+  (reposted = `listedAt − originalListedAt ≥ 3 days`; LinkedIn bumps `listedAt` by hours on
+  ordinary refreshes without labelling the job "Reposted").
 - Fallback on non-429/403 failure: guest endpoint
   `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{id}` (HTML fragment;
   description from `.show-more-less-html__markup`, applicants from

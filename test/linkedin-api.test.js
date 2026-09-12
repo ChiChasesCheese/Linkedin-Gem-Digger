@@ -26,6 +26,15 @@ test('parseVoyager reads text, applies, reposted', () => {
   assert.equal(parseVoyager({ description: { text: 'x' } }).applies, null);
 });
 
+test('parseVoyager: a same-day relist (LinkedIn refresh) is not a repost; a multi-day gap is', () => {
+  const H = 3600000, D = 86400000;
+  const base = { description: { text: 'x' }, originalListedAt: 1789139956000 };
+  assert.equal(parseVoyager({ ...base, listedAt: base.originalListedAt + 2 * H }).reposted, false); // seen live: "6 hours ago", not reposted
+  assert.equal(parseVoyager({ ...base, listedAt: base.originalListedAt + 2 * D }).reposted, false);
+  assert.equal(parseVoyager({ ...base, listedAt: base.originalListedAt + 3 * D }).reposted, true);
+  assert.equal(parseVoyager({ ...base, listedAt: base.originalListedAt + 600 * D }).reposted, true);
+});
+
 test('parseGuestHtml strips tags and reads capped applicants + reposted', () => {
   const r = parseGuestHtml(GUEST);
   assert.equal(r.text, '3+ years of Rust.\nNo sponsorship.');
