@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Linkedin Gem Digger",
+  "version": "0.1.0",
+  "description": "Flags years-of-experience, citizenship/clearance, sponsorship and other red flags on job postings. Not affiliated with LinkedIn.",
+  "permissions": ["storage", "activeTab"],
+  "action": { "default_popup": "popup/popup.html", "default_title": "Gem Digger" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/jobs/*",
+        "https://jobs.ashbyhq.com/*",
+        "https://*.ashbyhq.com/*",
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://jobs.smartrecruiters.com/*",
+        "https://wellfound.com/*",
+        "https://apply.workable.com/*",
+        "https://jobs.jobvite.com/*",
+        "https://*.icims.com/*",
+        "https://ats.rippling.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/*"],
+      "matches": [
+        "https://www.linkedin.com/*",
+        "https://jobs.ashbyhq.com/*",
+        "https://*.ashbyhq.com/*",
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://jobs.smartrecruiters.com/*",
+        "https://wellfound.com/*",
+        "https://apply.workable.com/*",
+        "https://jobs.jobvite.com/*",
+        "https://*.icims.com/*",
+        "https://ats.rippling.com/*"
+      ]
+    }
+  ]
+}
